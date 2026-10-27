@@ -1,0 +1,48 @@
+/* ---------- Asisten AI ---------- */
+.as-page { display: flex; flex-direction: column; height: 100%; max-width: 920px; padding-bottom: 18px; }
+.as-page h1 { display: flex; align-items: center; gap: 10px; }
+.as-cfg { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; margin-bottom: 12px; }
+.as-cfg h2 { font-size: 14.5px; font-weight: 750; display: flex; align-items: center; gap: 8px; }
+.as-presets { display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: 8px; }
+.as-preset { display: flex; flex-direction: column; gap: 3px; text-align: left; border: 1px solid var(--line-2); background: var(--panel); border-radius: var(--r-sm); padding: 8px 10px; }
+.as-preset small { color: var(--ink-3); font-size: 11.5px; line-height: 1.35; }
+.as-preset.on { border-color: var(--nila); box-shadow: 0 0 0 2px var(--nila-soft); }
+.as-log { flex: 1; min-height: 240px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding: 4px 2px 12px; }
+.as-empty { margin: auto; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; color: var(--nila); max-width: 420px; }
+.as-empty-title { font-size: 18px; font-weight: 750; color: var(--ink); }
+.as-msg { display: flex; }
+.as-msg.user { justify-content: flex-end; }
+.as-bubble { max-width: 78%; padding: 10px 14px; border-radius: 14px; background: var(--panel); border: 1px solid var(--line); line-height: 1.55; display: flex; flex-direction: column; gap: 6px; }
+.as-msg.user .as-bubble { background: var(--nila); color: #fff; border-color: var(--nila); border-bottom-right-radius: 4px; }
+@media (prefers-color-scheme: dark) {
+  :where(:root:not([data-theme="light"])) .as-msg.user .as-bubble { color: #12172a; }
+}
+:where(:root[data-theme="dark"]) .as-msg.user .as-bubble { color: #12172a; }
+.as-msg.assistant .as-bubble { border-bottom-left-radius: 4px; }
+.as-msg.err .as-bubble { border-color: var(--bata); background: var(--bata-soft); }
+.as-bubble ul { margin: 0; padding-left: 20px; }
+.as-bubble p { white-space: pre-wrap; }
+.as-h { font-weight: 750; }
+.as-actions { list-style: none; padding: 0 !important; display: flex; flex-direction: column; gap: 3px; margin-top: 2px !important; }
+.as-act { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; color: var(--daun); }
+.as-act.delete { color: var(--bata); }
+.as-pending { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; border: 1px dashed var(--kunyit); background: var(--kunyit-soft); color: var(--kunyit-ink); border-radius: 8px; padding: 7px 10px; font-size: 13px; font-weight: 600; }
+.as-pending.delete { border-color: var(--bata); background: var(--bata-soft); color: var(--bata); }
+.as-pending.ok { border-style: solid; border-color: var(--daun); background: var(--daun-soft); color: var(--daun); }
+.as-pending em { font-style: normal; font-weight: 700; }
+.as-pending-btns { display: flex; gap: 6px; }
+.as-busy { color: var(--ink-3); flex-direction: row; align-items: center; gap: 10px; }
+.as-dots { display: inline-flex; gap: 3px; }
+.as-dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--nila); opacity: 0.35; animation: asdot 1s infinite; }
+.as-dots i:nth-child(2) { animation-delay: 0.15s; }
+.as-dots i:nth-child(3) { animation-delay: 0.3s; }
+@keyframes asdot { 50% { opacity: 1; transform: translateY(-2px); } }
+.as-suggest { display: flex; gap: 6px; overflow-x: auto; padding: 4px 0 8px; scrollbar-width: thin; }
+.as-suggest .chip-btn { flex: none; }
+.as-input { display: flex; gap: 10px; align-items: flex-end; background: var(--panel); border: 1px solid var(--line-2); border-radius: var(--r); padding: 8px; }
+.as-input textarea { border: 0 !important; box-shadow: none !important; resize: none; padding: 6px 8px; }
+.as-input:focus-within { border-color: var(--nila); box-shadow: 0 0 0 3px var(--nila-soft); }
+.main:has(.as-page) { display: flex; flex-direction: column; }
+.main:has(.as-page) > .demo-banner { flex: none; }
+.as-page { flex: 1; min-height: 0; height: auto; }
+.as-input textarea:focus-visible { outline: none; }

@@ -1,0 +1,162 @@
+/* Tampilan yang bisa diatur: kepadatan, lebar halaman, animasi, panel yang bisa ditarik.
+   Memakai atribut pada <html> (data-density, data-width, data-motion) sehingga menang atas
+   CSS halaman yang dimuat belakangan. */
+
+/* ---------- Kepadatan: ringkas ---------- */
+:root[data-density="ringkas"] .page { padding: 18px 24px 30px; }
+:root[data-density="ringkas"] .page-split, :root[data-density="ringkas"] .page-files, :root[data-density="ringkas"] .page-tasks, :root[data-density="ringkas"] .page-cal { padding: 0; }
+:root[data-density="ringkas"] .page-head { margin-bottom: 14px; }
+:root[data-density="ringkas"] .page-head h1 { font-size: 22px; }
+:root[data-density="ringkas"] .panel { padding: 11px 13px; gap: 8px; }
+:root[data-density="ringkas"] .dash-grid, :root[data-density="ringkas"] .fin-grid { gap: 10px; }
+:root[data-density="ringkas"] .btn { height: 30px; padding: 0 11px; }
+:root[data-density="ringkas"] .btn-sm { height: 26px; padding: 0 8px; }
+:root[data-density="ringkas"] .icon-btn { width: 26px; height: 26px; }
+:root[data-density="ringkas"] input:not([type="checkbox"]):not([type="range"]), :root[data-density="ringkas"] select, :root[data-density="ringkas"] textarea { padding: 4px 8px; }
+:root[data-density="ringkas"] .toolbar { margin: 12px 0 6px; gap: 8px; }
+:root[data-density="ringkas"] .tk-row { padding-top: 5px; padding-bottom: 5px; }
+:root[data-density="ringkas"] .sb-row { min-height: 24px; }
+:root[data-density="ringkas"] .sb-row-main { padding-top: 2px; padding-bottom: 2px; font-size: 13px; }
+:root[data-density="ringkas"] .ld-table td { padding: 4px 10px; }
+:root[data-density="ringkas"] .tbl td { padding-top: 1px; padding-bottom: 1px; }
+:root[data-density="ringkas"] .fin-card, :root[data-density="ringkas"] .ld-tile { padding: 10px 12px; }
+:root[data-density="ringkas"] .setting { padding: 14px 0; }
+:root[data-density="ringkas"] .mtg-card { padding: 6px 10px; margin-bottom: 4px; }
+:root[data-density="ringkas"] .crs-row { padding-top: 3px; padding-bottom: 3px; }
+:root[data-density="ringkas"] .rem { padding-top: 6px; padding-bottom: 6px; }
+:root[data-density="ringkas"] .kpi-row { padding-top: 6px; padding-bottom: 6px; }
+:root[data-density="ringkas"] .modal-body { padding: 8px 18px 14px; }
+:root[data-density="ringkas"] .form { gap: 10px; }
+
+/* ---------- Kepadatan: lega ---------- */
+:root[data-density="lega"] .page { padding: 36px 48px 60px; }
+:root[data-density="lega"] .page-split, :root[data-density="lega"] .page-files, :root[data-density="lega"] .page-tasks, :root[data-density="lega"] .page-cal { padding: 0; }
+:root[data-density="lega"] .page-head { margin-bottom: 28px; }
+:root[data-density="lega"] .panel { padding: 20px 22px; gap: 14px; }
+:root[data-density="lega"] .dash-grid, :root[data-density="lega"] .fin-grid { gap: 20px; }
+:root[data-density="lega"] .btn { height: 38px; padding: 0 16px; }
+:root[data-density="lega"] .btn-sm { height: 32px; }
+:root[data-density="lega"] .icon-btn { width: 34px; height: 34px; }
+:root[data-density="lega"] input:not([type="checkbox"]):not([type="range"]), :root[data-density="lega"] select, :root[data-density="lega"] textarea { padding: 9px 12px; }
+:root[data-density="lega"] .tk-row { padding-top: 13px; padding-bottom: 13px; }
+:root[data-density="lega"] .sb-row { min-height: 32px; }
+:root[data-density="lega"] .ld-table td { padding: 11px 14px; }
+:root[data-density="lega"] .tbl td { padding-top: 6px; padding-bottom: 6px; }
+:root[data-density="lega"] .fin-card { padding: 18px 20px; }
+:root[data-density="lega"] .setting { padding: 26px 0; }
+:root[data-density="lega"] .mtg-card { padding: 13px 14px; }
+:root[data-density="lega"] .rem { padding-top: 13px; padding-bottom: 13px; }
+
+/* ---------- Lebar halaman ---------- */
+:root[data-width="lebar"] .page:not(.page-split):not(.page-files):not(.page-tasks):not(.page-cal):not(.page-wide):not(.page-narrow) { max-width: 1480px; }
+:root[data-width="lebar"] .page-narrow { max-width: 1000px; }
+:root[data-width="lebar"] .nt-page:not(.wide) { max-width: 960px; }
+:root[data-width="penuh"] .page:not(.page-split):not(.page-files):not(.page-tasks):not(.page-cal):not(.page-wide):not(.page-narrow), :root[data-width="penuh"] .page-narrow { max-width: none; }
+:root[data-width="penuh"] .nt-page:not(.wide) { max-width: 1180px; }
+
+/* ---------- Animasi dikurangi ---------- */
+:root[data-motion="reduce"] *, :root[data-motion="reduce"] *::before, :root[data-motion="reduce"] *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
+
+/* ---------- Panel yang bisa ditarik lebarnya ---------- */
+.pane-host { position: relative; }
+.pane-resizer { position: absolute; top: 0; bottom: 0; z-index: 6; width: 0; cursor: col-resize; }
+.pane-resizer::before { content: ""; position: absolute; top: 0; bottom: 0; left: -4px; width: 8px; }
+.pane-resizer::after { content: ""; position: absolute; top: 0; bottom: 0; left: -1px; width: 2px; background: transparent; transition: background 0.12s; }
+.pane-resizer:hover::after, .pane-resizer.dragging::after { background: var(--nila); }
+.pane-resizer:focus-visible { outline: none; }
+.pane-resizer:focus-visible::after { background: var(--nila); }
+body.pane-dragging, body.pane-dragging * { cursor: col-resize !important; user-select: none !important; }
+
+/* ---------- Atur tampilan halaman ---------- */
+.lay-btn { display: inline-flex; align-items: center; gap: 6px; }
+.lay-pop { position: fixed; z-index: 60; width: 320px; max-height: min(70vh, 560px); overflow: auto; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 8px; }
+.lay-pop h3 { font-size: 13px; font-weight: 750; display: flex; align-items: center; gap: 6px; }
+.lay-pop h3 .link { margin-left: auto; font-size: 12px; }
+.lay-pop .set-list-head { margin: 4px 0 0; }
+.lay-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; }
+.lay-list li { display: flex; align-items: center; gap: 4px; padding: 3px 4px; border-radius: 6px; font-size: 13px; }
+.lay-list li:hover { background: var(--panel-2); }
+.lay-list li label { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.lay-list li label span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lay-list li.off label span { color: var(--ink-3); }
+.lay-list .icon-btn { width: 24px; height: 24px; }
+.lay-wide { font-size: 11px; font-weight: 700; border: 1px solid var(--line-2); background: none; border-radius: 999px; padding: 0 7px; line-height: 18px; color: var(--ink-3); }
+.lay-wide.on { background: var(--nila-soft); color: var(--nila-ink); border-color: transparent; }
+.lay-opts { display: flex; flex-direction: column; gap: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
+.lay-opts .seg { width: 100%; }
+.lay-opts .seg button { flex: 1; }
+.lay-opt-label { font-size: 12px; font-weight: 650; color: var(--ink-2); }
+
+/* Tampilan cepat (Aa) di sidebar */
+.qa-pop { width: 300px; }
+.qa-accents { display: flex; flex-wrap: wrap; gap: 7px; }
+.qa-accents button { width: 24px; height: 24px; border-radius: 50%; border: 2px solid transparent; padding: 0; background: var(--sw); box-shadow: inset 0 0 0 2px var(--panel); }
+.qa-accents button.on { border-color: var(--ink); }
+.qa-zoom { display: flex; align-items: center; gap: 6px; }
+.qa-zoom b { min-width: 46px; text-align: center; font-variant-numeric: tabular-nums; font-size: 13px; }
+.qa-zoom input { flex: 1; padding: 0; accent-color: var(--nila); }
+.lay-seg { display: flex; flex-direction: column; gap: 4px; }
+.lay-seg .seg { display: flex; }
+.lay-seg .seg button { flex: 1; padding: 4px 6px; }
+.lay-check { font-size: 13px; }
+.lay-btn.customized { border-color: var(--nila); color: var(--nila-ink); }
+
+/* Lebar panel yang diatur pengguna (variabel diisi dari komponen). */
+.page-tasks.pane-host { grid-template-columns: var(--pane-l, 250px) minmax(0, 1fr); }
+.page-tasks.pane-host.with-detail { grid-template-columns: var(--pane-l, 250px) minmax(0, 1fr) var(--pane-r, 400px); }
+.page-tasks.pane-host.side-off { grid-template-columns: minmax(0, 1fr); }
+.page-tasks.pane-host.side-off.with-detail { grid-template-columns: minmax(0, 1fr) var(--pane-r, 400px); }
+.page-tasks.side-off .tk-side { display: none; }
+@media (min-width: 1181px) {
+  .cal-body.pane-host { grid-template-columns: var(--pane-l, 236px) minmax(0, 1fr); }
+  .files-body.pane-host { grid-template-columns: minmax(0, 1fr) var(--pane-r, 240px); }
+}
+.cal-body.pane-host.side-off { grid-template-columns: minmax(0, 1fr); }
+.cal-body.side-off .cal-side { display: none; }
+.page-files.pane-host { grid-template-columns: var(--pane-l, 210px) minmax(0, 1fr); }
+.mtg-layout.pane-host { grid-template-columns: var(--pane-l, 360px) minmax(0, 1fr); }
+@media (max-width: 1050px) { .mtg-layout.pane-host { grid-template-columns: 1fr; } .mtg-layout .pane-resizer { display: none; } }
+@media (max-width: 1180px) { .cal-body .pane-resizer, .files-body .pane-resizer { display: none; } }
+.crs-drawer { position: relative; }
+/* Properti tugas yang disembunyikan (Tugas › Tampilan) */
+.tp-hide-status .tk-sdot, .tp-hide-prioritas .tk-flag, .tp-hide-proyek .tp-proyek, .tp-hide-tenggat .tk-due,
+.tp-hide-orang .avatar-stack, .tp-hide-subtugas .tp-subtugas, .tp-hide-checklist .tp-checklist, .tp-hide-estimasi .tp-estimasi,
+.tp-hide-berulang .tp-berulang, .tp-hide-kr .tp-kr, .tp-hide-tag .tk-tag { display: none !important; }
+.tk-head .lay-btn { margin-left: auto; }
+.mtg-d { display: flex; flex-direction: column; }
+.mtg-d > .mtg-d-head, .mtg-d > .ro-banner { order: -1; }
+.mtg-d [hidden], .lay-hidden[hidden] { display: none !important; }
+.lay-btn:empty, .lay-btn.icon-only { padding: 0 8px; }
+.dash-head[hidden] { display: none; }
+.dash-tools { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
+.lay-stack { display: flex; flex-direction: column; }
+.lay-stack > [hidden] { display: none !important; }
+.lay-stack > .ib-top { margin-bottom: 8px; }
+
+/* Evaluasi: kartu bisa disembunyikan/diurutkan, refleksi di samping atau di bawah */
+.rv-grid[hidden], .rv-col > [hidden], .rv-grid > [hidden] { display: none !important; }
+.rv-grid.rv-stacked { grid-template-columns: minmax(0, 1fr); }
+.rv-col.cols-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 16px; }
+@media (max-width: 900px) { .rv-col.cols-2 { grid-template-columns: minmax(0, 1fr); } }
+
+/* Jadwal harian: baki tugas bisa ditarik lebarnya */
+.sg-body.pane-host.with-tray { grid-template-columns: var(--pane-l, 240px) minmax(0, 1fr); }
+@media (max-width: 1100px) { .sg-body.pane-host.with-tray { grid-template-columns: 1fr; } .sg-body .pane-resizer { display: none; } }
+
+/* OKR: objective dalam dua kolom */
+.okr-list.cols-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+@media (max-width: 1000px) { .okr-list.cols-2 { grid-template-columns: minmax(0, 1fr); } }
+.period[hidden] { display: none !important; }
+
+/* Timeline proyek: kolom nama bisa ditarik */
+.rm-frame.pane-host .rm-labels { flex: 0 0 var(--pane-l, 270px); min-width: 0; overflow: hidden; }
+.rm-frame.pane-host .pane-resizer { margin-left: -1px; }
+.pj-progress[hidden], .pj-stats[hidden] { display: none !important; }
+
+/* Jendela sempit: tab tampilan tugas & tabel KPI bisa digulir ke samping, tidak terpotong */
+.tk-head .seg { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+.tk-head .seg button { flex-shrink: 0; white-space: nowrap; }
+@media (max-width: 1180px) {
+  .kpi-table { overflow-x: auto; }
+  .kpi-table .kpi-row { min-width: 640px; }
+}

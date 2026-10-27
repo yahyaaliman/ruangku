@@ -1,0 +1,77 @@
+/* Sidebar ala Notion */
+.shell { grid-template-columns: var(--sb-w, 248px) 1fr; }
+.shell.sb-hidden { grid-template-columns: 0 1fr; }
+.shell.sb-hidden > .sidebar { display: none; }
+.sb { position: relative; min-width: 0; padding: 14px 8px 10px; gap: 2px; overflow: hidden; }
+.sb .brand { padding: 2px 8px 12px; gap: 9px; }
+.sb .brand .sb-hide { margin-left: auto; opacity: 0; transition: opacity 0.12s; }
+.sb:hover .brand .sb-hide, .sb .brand .sb-hide:focus-visible { opacity: 1; }
+.sb .cp-trigger { margin: 0 2px 6px; }
+.sb-scroll { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; margin: 0 -8px; padding: 0 8px 8px; scrollbar-width: thin; }
+.sb .nav-item { padding: 6px 10px; }
+.sb-sec { margin-top: 12px; }
+.sb-sec-head { display: flex; align-items: center; padding: 0 2px 2px 8px; min-height: 24px; }
+.sb-sec-title { display: inline-flex; align-items: center; gap: 4px; border: 0; background: none; padding: 2px 4px 2px 0; font-size: 11.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-3); border-radius: 4px; }
+.sb-sec-title svg { opacity: 0; transition: opacity 0.12s, transform 0.12s; }
+.sb-sec-title svg.open { transform: rotate(90deg); }
+.sb-sec-head:hover .sb-sec-title svg { opacity: 1; }
+.sb-sec-title:hover { color: var(--ink-2); }
+.sb-sec-acts { margin-left: auto; display: inline-flex; gap: 1px; opacity: 0; transition: opacity 0.12s; }
+.sb-sec-head:hover .sb-sec-acts, .sb-sec-acts:focus-within { opacity: 1; }
+
+.sb-tree { display: flex; flex-direction: column; }
+.sb-row { position: relative; display: flex; align-items: center; min-height: 28px; border-radius: var(--r-sm); padding-right: 2px; }
+.sb-row:hover { background: var(--line); }
+.sb-row.active { background: var(--nila-soft); }
+.sb-row.active .sb-label { color: var(--nila-ink); font-weight: 650; }
+.sb-row.drop-inside { box-shadow: inset 0 0 0 2px var(--nila); background: var(--nila-soft); }
+.sb-row.drop-before::before, .sb-row.drop-after::after { content: ""; position: absolute; left: 8px; right: 4px; height: 2px; background: var(--nila); border-radius: 2px; pointer-events: none; }
+.sb-row.drop-before::before { top: -1px; }
+.sb-row.drop-after::after { bottom: -1px; }
+.sb-chev { width: 20px; height: 22px; flex: none; display: grid; place-items: center; border: 0; background: none; padding: 0; color: var(--ink-3); border-radius: 4px; }
+.sb-chev:not(.none):hover { background: var(--line-2); color: var(--ink); }
+.sb-chev.none { cursor: default; }
+.sb-chev svg { transition: transform 0.12s; }
+.sb-chev svg.open { transform: rotate(90deg); }
+.sb-row-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 7px; border: 0; background: none; padding: 4px 4px 4px 0; text-align: left; color: var(--ink-2); font-weight: 550; font-size: 13.5px; border-radius: 4px; }
+.sb-row-main.editing { padding-right: 4px; }
+.sb-ico { width: 20px; height: 20px; flex: none; display: grid; place-items: center; font-size: 14px; border-radius: 4px; }
+.sb-row:hover .sb-ico:hover { background: var(--line-2); }
+.sb-ico .pm-icon { font-size: 14px; }
+.sb-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sb-label.untitled { color: var(--ink-3); }
+.sb-count { font-size: 11px; font-weight: 650; color: var(--ink-3); background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 0 6px; line-height: 16px; flex: none; margin-left: auto; }
+.sb-row:hover .sb-count { display: none; }
+.sb-acts { display: none; align-items: center; gap: 1px; flex: none; }
+.sb-row:hover .sb-acts, .sb-row:focus-within .sb-acts { display: inline-flex; }
+.sb-act { width: 22px; height: 22px; display: grid; place-items: center; border: 0; background: none; color: var(--ink-3); border-radius: 4px; padding: 0; }
+.sb-act:hover { background: var(--line-2); color: var(--ink); }
+.sb-rename { flex: 1; min-width: 0; font-size: 13.5px; font-weight: 550; padding: 2px 6px; border: 1px solid var(--nila); border-radius: 4px; background: var(--panel); outline: none; box-shadow: 0 0 0 3px var(--nila-soft); }
+.sb-group-row .sb-row-main { color: var(--ink-3); }
+.sb-empty { font-size: 12px; color: var(--ink-3); padding: 4px 10px 4px 30px; }
+.sb-swatch { width: 12px; height: 12px; border-radius: 3px; display: inline-block; background: var(--bc); }
+.sb-foot-row { display: flex; gap: 2px; }
+.sb-foot-row .nav-item:first-child { flex: 1; }
+.sb-foot-row .nav-item { padding: 6px 10px; }
+.sb-foot-row .nav-item .sb-count { margin-left: auto; }
+.sb .sidebar-foot { gap: 4px; padding-top: 6px; border-top: 1px solid var(--line); }
+.sb-resize { position: absolute; top: 0; right: -3px; width: 6px; height: 100%; cursor: col-resize; z-index: 5; }
+.sb-resize:hover, .sb-resize:active { background: linear-gradient(to right, transparent 2px, var(--nila) 2px, var(--nila) 4px, transparent 4px); }
+.sb-opener { position: fixed; top: 12px; left: 12px; z-index: 40; background: var(--panel); border: 1px solid var(--line); box-shadow: var(--shadow); }
+.shell.sb-hidden .main { padding-left: 0; }
+.shell.sb-hidden .page { padding-left: 64px; }
+.sb-navedit { list-style: none; margin: 12px 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.sb-navedit li { display: flex; align-items: center; gap: 4px; padding: 4px 8px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--panel); }
+.sb-navedit .check-row { display: inline-flex; align-items: center; gap: 8px; }
+.sb-navedit .spacer { flex: 1; }
+
+/* Sampah */
+.trash-list { list-style: none; margin: 12px 0; padding: 0; display: flex; flex-direction: column; gap: 4px; max-height: 50vh; overflow: auto; }
+.trash-list li { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--panel); }
+.trash-ico { font-size: 18px; width: 24px; text-align: center; }
+.trash-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.trash-main b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Pemilih proyek cepat (Ctrl+P) */
+.pswitch.quick { position: fixed; inset: 0; z-index: 90; pointer-events: none; }
+.pswitch.quick .pswitch-pop { pointer-events: auto; position: fixed; top: 84px; left: 50%; transform: translateX(-50%); width: min(420px, 92vw); }
