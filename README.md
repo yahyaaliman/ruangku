@@ -1,6 +1,6 @@
 # Ruangku
 
-**Tambahan: ikon ruang, tab kalender dasbor, dan akun Google**
+**Baru di versi 0.5: ikon ruang, tab kalender dasbor, dan akun Google**
 
 - Klik ikon di sidebar atau tombol ikon pada formulir proyek untuk memilih, mencari, mengacak, atau menghapus emoji. Tombol ikon kini dapat digunakan lewat keyboard.
 - **Hari ini → Kalender** membuka kalender dalam tab dasbor. Menu **Tampilan** mengatur tinggi kalender, tinggi baris minggu pada tampilan Bulan, dan tinggi per jam pada Hari/Minggu. Pilihan disimpan.
@@ -78,14 +78,14 @@ Semua data disimpan lokal di `%APPDATA%\com.ruangku.app\ruangku.db` (SQLite).
 1. Buat repository baru di GitHub, lalu unggah isi folder ini (atau `git push`).
 2. Buka tab **Actions** → **Build Windows**. Workflow berjalan otomatis setiap push ke `main` (atau klik **Run workflow**). Uji frontend dan backend dijalankan dulu sebelum build.
 3. Setelah selesai (sekitar 10–15 menit), buka run tersebut dan unduh **Ruangku-Windows-installer** di bagian *Artifacts*.
-4. Jalankan `Ruangku_0.4.1_x64-setup.exe`. Installer dipasang untuk user saat ini, tanpa hak admin.
+4. Jalankan `Ruangku_0.5.0_x64-setup.exe`. Installer dipasang untuk user saat ini, tanpa hak admin.
 
 ### Rilis dan pembaruan otomatis
 
 Push tag versi untuk menerbitkan installer sebagai **GitHub Release**:
 
 ```powershell
-git tag v0.4.1
+git tag v0.5.0
 git push --tags
 ```
 

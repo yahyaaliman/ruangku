@@ -13,8 +13,9 @@ Distribusi aplikasi dapat memasukkan `VITE_GOOGLE_CLIENT_ID` dan `VITE_GOOGLE_CL
 ## Perilaku
 
 - Sinkron otomatis setiap tiga menit selama jendela utama berjalan, sepuluh detik setelah perubahan, saat koneksi kembali, atau melalui tombol **Sinkronkan sekarang**.
+- Snapshot perangkat hanya diunggah ulang bila isinya berubah, jadi sinkron berkala tanpa perubahan hanya mengunduh.
 - Setiap perangkat menulis snapshot miliknya sendiri di folder data aplikasi tersembunyi Google Drive. Semua snapshot dibaca dan divalidasi dahulu, lalu digabung oleh mesin database yang sudah mendukung penggabungan per kolom serta penghapusan.
-- Pengaturan yang ikut: tema, tampilan, sidebar/favorit, lebar panel, susunan/tab dasbor, ukuran dan pilihan kalender, modul yang disembunyikan, serta tata letak halaman. Perubahan pada pengaturan yang sama menggunakan nilai terbaru; bukan penggabungan tiap properti JSON pengaturan.
+- Pengaturan yang ikut: tema, tampilan (kecuali **ukuran tampilan/zoom**, yang tetap per perangkat karena tiap layar berbeda), sidebar/favorit, lebar panel, susunan/tab dasbor, ukuran dan pilihan kalender, modul yang disembunyikan, serta tata letak halaman. Perubahan pada pengaturan yang sama menggunakan nilai terbaru; bukan penggabungan tiap properti JSON pengaturan.
 - Pengaturan lama tanpa waktu perubahan diberi waktu awal sehingga pilihan tersimpan di cloud tidak ditimpa oleh bawaan perangkat baru.
 - Konfigurasi login/konektor, token, kunci API, folder sinkron, identitas perangkat, dan lokasi jendela tidak disinkronkan. Subscription kalender eksternal dan workspace tim juga dikecualikan. Berkas fisik di File Manager dan lampiran gambar lokal tidak diunggah; referensi file mungkin hanya berfungsi di perangkat asal.
 - Ini berbeda dari konektor Google Calendar. Konektor tersebut tetap dipakai untuk pertukaran acara kalender.

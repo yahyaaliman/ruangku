@@ -1,12 +1,12 @@
 import { describe, it, expect, vi } from "vitest";
-import { DRIVE_SCOPE, DriveClient, loginAccount, parseSnapshot, portableRecord, portableSetting, syncAccount } from "./drive";
+import { DRIVE_SCOPE, DriveClient, loginAccount, parseSnapshot, portableRecord, portableSetting, snapshotSignature, syncAccount } from "./drive";
 import type { RawRecord } from "../lib/types";
 import type { LoginDeps } from "../calendar/gcal";
 
 const record = (id: string, deleted = false): RawRecord => ({ id, kind: "note", data: deleted ? null : { title: id }, updatedAt: 10, deleted });
 describe("personal Google sync", () => {
   it("never publishes credentials or subscription URLs as preferences", () => {
-    for (const key of ["secret:token", "google_account", "gcal_config", "device_id", "sync_folder", "ai_config", "layout_secret"]) expect(portableSetting(key)).toBe(false);
+    for (const key of ["secret:token", "google_account", "gcal_config", "device_id", "sync_folder", "ai_config", "layout_secret", "appearance_zoom"]) expect(portableSetting(key)).toBe(false);
     expect(portableSetting("calendar_size")).toBe(true);
     expect(portableSetting("layout_kuliah")).toBe(true);
     expect(portableRecord({ ...record("x"), kind: "workspace" })).toBe(false);
@@ -27,6 +27,27 @@ describe("personal Google sync", () => {
     };
     await syncAccount(client, "A", { merge: async r => { local.push(...r); }, export: async () => local });
     expect(client.write).toHaveBeenCalledWith("1", { format: 1, deviceId: "A", records: [record("local"), record("1"), record("2", true)] });
+  });
+  it("skips the upload when this device's snapshot is already up to date", async () => {
+    const local: RawRecord[] = [record("a"), record("b")];
+    const client = {
+      files: vi.fn(async () => [{ id: "1", name: "ruangku-device-A.json" }]),
+      // Same content, different order: still counts as unchanged.
+      read: vi.fn(async () => ({ format: 1 as const, deviceId: "A", records: [record("b"), record("a")] })),
+      write: vi.fn(async () => {}),
+    };
+    const res = await syncAccount(client, "A", { merge: async () => {}, export: async () => local });
+    expect(client.write).not.toHaveBeenCalled();
+    expect(res.pushed).toBe(0);
+    local.push({ ...record("a"), updatedAt: 11 });
+    local.splice(0, 1);
+    await syncAccount(client, "A", { merge: async () => {}, export: async () => local });
+    expect(client.write).toHaveBeenCalledTimes(1);
+  });
+  it("signature reacts to edits and deletions but not to order", () => {
+    expect(snapshotSignature([record("a"), record("b")])).toBe(snapshotSignature([record("b"), record("a")]));
+    expect(snapshotSignature([record("a")])).not.toBe(snapshotSignature([record("a", true)]));
+    expect(snapshotSignature([record("a")])).not.toBe(snapshotSignature([{ ...record("a"), updatedAt: 11 }]));
   });
   it("does not import or overwrite snapshots when a download fails", async () => {
     const merge = vi.fn(), write = vi.fn();

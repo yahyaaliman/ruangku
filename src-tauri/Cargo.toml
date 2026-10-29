@@ -1,6 +1,6 @@
 [package]
 name = "ruangku"
-version = "0.4.1"
+version = "0.5.0"
 description = "Ruangku - jadwal, reminder, OKR, KPI harian, catatan, dan manajemen file"
 authors = ["Ruangku"]
 edition = "2021"

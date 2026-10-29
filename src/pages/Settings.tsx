@@ -97,7 +97,7 @@ export default function Settings({ sync, go, moduleNav }: { sync: Sync; go: (pag
             </>
           )}
           <p className="muted small about">
-            Ruangku 0.4.1. Database lokal ada di <code>%APPDATA%\com.ruangku.app\ruangku.db</code>, backup harian di subfolder <code>backups</code>. Pintasan: Ctrl+K cari & perintah, Ctrl+\ sidebar, Ctrl+1 sampai Ctrl+9 pindah halaman, Ctrl+P pilih proyek, Ctrl+J asisten AI, Ctrl+N item baru, Ctrl+Shift+Space catat cepat dari mana saja, F1 panduan.
+            Ruangku 0.5.0. Database lokal ada di <code>%APPDATA%\com.ruangku.app\ruangku.db</code>, backup harian di subfolder <code>backups</code>. Pintasan: Ctrl+K cari & perintah, Ctrl+\ sidebar, Ctrl+1 sampai Ctrl+9 pindah halaman, Ctrl+P pilih proyek, Ctrl+J asisten AI, Ctrl+N item baru, Ctrl+Shift+Space catat cepat dari mana saja, F1 panduan.
           </p>
         </div>
       </div>

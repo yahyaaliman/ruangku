@@ -13,7 +13,7 @@ import { useJsonSetting } from "../lib/useSetting";
 export const MODERN = "2026-07-28";
 export const LEGACY = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"];
 export const SUPPORTED = [MODERN, ...LEGACY];
-const SERVER_INFO = { name: "ruangku", title: "Ruangku", version: "0.4.1" };
+const SERVER_INFO = { name: "ruangku", title: "Ruangku", version: "0.5.0" };
 const META_PV = "io.modelcontextprotocol/protocolVersion";
 
 export interface McpConfig {

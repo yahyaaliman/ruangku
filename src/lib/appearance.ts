@@ -24,6 +24,8 @@ export interface Appearance {
 
 export const DEFAULT_APPEARANCE: Appearance = { accent: "nila", zoom: 100, density: "nyaman", font: "jakarta", width: "normal", radius: "sedang", reduceMotion: false };
 export const APPEARANCE_KEY = "appearance";
+/** Ukuran tampilan disimpan terpisah dan TIDAK ikut sinkron akun: tiap layar butuh zoom sendiri. */
+export const ZOOM_KEY = "appearance_zoom";
 const LS = "ruangku-appearance";
 
 /** [utama, lembut, tinta] untuk tema terang dan gelap. Warna utama terang lolos kontras teks putih. */
@@ -117,26 +119,55 @@ export function storedAppearance(): Appearance {
   }
 }
 
+/** Bagian tampilan yang ikut sinkron antarperangkat (semua kecuali zoom). */
+export function portableAppearance(a: Appearance): string {
+  const { zoom: _zoom, ...rest } = normalizeAppearance(a);
+  void _zoom;
+  return JSON.stringify(rest);
+}
+
+/** Gabungkan tampilan tersinkron dengan zoom milik perangkat ini. */
+export function mergeAppearance(shared: string | null, zoom: string | null, fallbackZoom: number): Appearance {
+  const parsed = shared ? (JSON.parse(shared) as Partial<Appearance>) : {};
+  const z = zoom !== null && zoom !== "" ? Number(zoom) : typeof parsed.zoom === "number" ? parsed.zoom : fallbackZoom;
+  return normalizeAppearance({ ...parsed, zoom: z });
+}
+
+let savedPortable: string | null = null;
+let savedZoom: number | null = null;
+
 /** Pasang di setiap jendela non-widget: terapkan tampilan tersimpan dan ikuti perubahannya. */
 export function followAppearance() {
   applyAppearance(storedAppearance());
   const sync = () =>
-    api
-      .getSetting(APPEARANCE_KEY)
-      .then((v) => {
-        if (!v) return;
-        const a = normalizeAppearance(JSON.parse(v));
+    Promise.all([api.getSetting(APPEARANCE_KEY), api.getSetting(ZOOM_KEY)])
+      .then(([shared, zoom]) => {
+        if (!shared && zoom === null) return;
+        const a = mergeAppearance(shared, zoom, current.zoom);
+        savedPortable = portableAppearance(a);
+        savedZoom = a.zoom;
+        // Pindahkan zoom lama (dulu bagian dari "appearance") ke setelan khusus perangkat ini.
+        if (zoom === null) api.setSetting(ZOOM_KEY, String(a.zoom)).catch(() => {});
         if (JSON.stringify(a) !== JSON.stringify(current)) applyAppearance(a);
       })
       .catch(() => {});
   sync();
-  onEvent<string>("setting-changed", (k) => k === APPEARANCE_KEY && sync());
+  onEvent<string>("setting-changed", (k) => (k === APPEARANCE_KEY || k === ZOOM_KEY) && sync());
 }
 
 export function saveAppearance(a: Appearance) {
   const n = normalizeAppearance(a);
   applyAppearance(n);
-  api.setSetting(APPEARANCE_KEY, JSON.stringify(n)).catch(() => {});
+  // Tulis hanya bagian yang berubah: mengganti zoom tidak memicu sinkron akun.
+  const portable = portableAppearance(n);
+  if (portable !== savedPortable) {
+    savedPortable = portable;
+    api.setSetting(APPEARANCE_KEY, portable).catch(() => {});
+  }
+  if (n.zoom !== savedZoom) {
+    savedZoom = n.zoom;
+    api.setSetting(ZOOM_KEY, String(n.zoom)).catch(() => {});
+  }
 }
 
 export function useAppearance(): [Appearance, (patch: Partial<Appearance>) => void, () => void] {
