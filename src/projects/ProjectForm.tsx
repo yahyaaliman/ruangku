@@ -1,3 +1,4 @@
+import { EmojiPicker } from "../components/EmojiPicker";
 import { useState } from "react";
 import { ChevronDown, ChevronUp, FolderOpen, Plus, Trash2, X } from "lucide-react";
 import type { BlockColor, Item } from "../lib/types";
@@ -9,8 +10,6 @@ import { Field, Modal } from "../components/ui";
 import { BLOCK_COLORS } from "../widget/TimeGrid";
 import { useRecords } from "../lib/useRecords";
 import type { Member } from "../lib/team";
-
-const ICONS = ["", "🏢", "🎯", "🎓", "📚", "🔬", "🤝", "💼", "🧾", "💡", "🛠️", "📣", "🧑‍💻", "🕌", "💰", "📦", "🌱", "🗂️"];
 
 export interface Workspace {
   name: string;
@@ -35,6 +34,7 @@ export default function ProjectForm({
   const parentInit = initial?.parentId ?? presetParent;
   const parentProject = projects.find((p) => p.id === parentInit);
   const [name, setName] = useState(initial?.name ?? "");
+  const [iconAt, setIconAt] = useState<{ x: number; y: number } | null>(null);
   const [icon, setIcon] = useState(initial?.icon ?? "");
   const [color, setColor] = useState<BlockColor>(initial?.color ?? parentProject?.color ?? "nila");
   const [parentId, setParentId] = useState(parentInit ?? "");
@@ -100,9 +100,8 @@ export default function ProjectForm({
     >
       <div className="form">
         <div className="pf-name">
-          <select value={icon} onChange={(e) => setIcon(e.target.value)} aria-label="Ikon proyek" className="pf-icon">
-            {ICONS.map((i) => <option key={i} value={i}>{i || "—"}</option>)}
-          </select>
+          <button type="button" className="pf-icon" aria-label="Pilih ikon ruang" title="Pilih ikon ruang" onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); setIconAt({ x: r.left, y: r.bottom + 4 }); }}>{icon || "＋"}</button>
+          {iconAt && <EmojiPicker at={iconAt} onPick={setIcon} onRemove={() => setIcon("")} onClose={() => setIconAt(null)} />}
           <Field label="Nama proyek"><input value={name} onChange={(e) => setName(e.target.value)} placeholder="Contoh: Riset Thesis" autoFocus /></Field>
         </div>
         <div className="form-row">

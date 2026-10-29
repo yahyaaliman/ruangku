@@ -75,3 +75,7 @@
 /* Pemilih proyek cepat (Ctrl+P) */
 .pswitch.quick { position: fixed; inset: 0; z-index: 90; pointer-events: none; }
 .pswitch.quick .pswitch-pop { pointer-events: auto; position: fixed; top: 84px; left: 50%; transform: translateX(-50%); width: min(420px, 92vw); }
+
+.sb-icon-edit { border: 0; background: none; border-radius: 4px; cursor: pointer; padding: 0; margin-right: 7px; flex-shrink: 0; }
+.sb-icon-edit:hover, .sb-icon-edit:focus-visible { background: var(--line); outline: 2px solid var(--nila); }
+.sb-icon-edit:disabled { cursor: default; }

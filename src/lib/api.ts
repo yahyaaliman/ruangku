@@ -103,6 +103,7 @@ export const api = {
   remove: (id: string, kind: string) => call<void>("record_delete", { id, kind }),
   importRecords: (records: RawRecord[]) => call<number>("records_import", { records }),
   countRecords: () => call<number>("records_count"),
+  accountExport: () => call<RawRecord[]>("account_export"),
   changedSince: (since: number) => call<RawRecord[]>("records_changed_since", { since }),
   forceRecords: (records: RawRecord[]) => call<number>("records_force", { records }),
   removeDemo: () => call<number>("records_remove_demo"),

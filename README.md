@@ -1,5 +1,11 @@
 # Ruangku
 
+**Tambahan: ikon ruang, tab kalender dasbor, dan akun Google**
+
+- Klik ikon di sidebar atau tombol ikon pada formulir proyek untuk memilih, mencari, mengacak, atau menghapus emoji. Tombol ikon kini dapat digunakan lewat keyboard.
+- **Hari ini → Kalender** membuka kalender dalam tab dasbor. Menu **Tampilan** mengatur tinggi kalender, tinggi baris minggu pada tampilan Bulan, dan tinggi per jam pada Hari/Minggu. Pilihan disimpan.
+- **Pengaturan → Akun Google** menyediakan login dan sinkronisasi data serta pengaturan tampilan antarinstalasi Windows melalui Google Drive. Perlu konfigurasi OAuth Desktop dan Drive API sebelum bisa digunakan: lihat [panduan aktivasi akun Google](GOOGLE-ACCOUNT.md).
+
 Aplikasi desktop Windows untuk mengatur hari kerja dalam satu tempat. Panduan lengkap ada di aplikasi (menu **Panduan**, F1) dan di [PANDUAN.md](PANDUAN.md).
 
 **Baru di versi 0.4.1: semua tampilan bisa diatur**

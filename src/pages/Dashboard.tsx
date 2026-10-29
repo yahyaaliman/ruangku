@@ -1,3 +1,5 @@
+import { lazy, Suspense } from "react";
+import { useJsonSetting } from "../lib/useSetting";
 import { ReactNode, useMemo, useState } from "react";
 import { ChevronDown, ChevronUp, Eye, EyeOff, Plus, Settings2 } from "lucide-react";
 import { ClassesPanel, MeetingsPanel, MoneyPanel, PANEL_LABEL, ProjectsPanel, TasksPanel, TimePanel, useDashLayout } from "./DashPanels";
@@ -21,6 +23,7 @@ import { LayoutCheck, LayoutMenu, LayoutSeg } from "../components/LayoutMenu";
 
 const DAY_START = 6;
 const DAY_END = 22;
+const Calendar = lazy(() => import("./Calendar"));
 
 function DayRuler({ items, now }: { items: Item<Reminder>[]; now: number }) {
   const d0 = startOfDay(now);
@@ -77,6 +80,7 @@ function DayRuler({ items, now }: { items: Item<Reminder>[]; now: number }) {
 const NO_SECTIONS: SectionDef[] = [];
 
 export default function Dashboard({ go }: { go: (p: Page) => void }) {
+  const [dashView, setDashView] = useJsonSetting("dashboard_view", { tab: "ringkasan" });
   const now = useNow();
   const reminders = useRecords<Reminder>("reminder");
   const kpis = useRecords<Kpi>("kpi");
@@ -274,7 +278,11 @@ export default function Dashboard({ go }: { go: (p: Page) => void }) {
     projects: <ProjectsPanel go={go} />,
   };
   return (
-    <div className="page dash">
+    <div className={`page dash ${dashView.tab === "kalender" ? "dash-calendar" : ""}`}>
+      <div className="seg dash-tabs" role="tablist" aria-label="Dasbor">
+        {[ ["ringkasan", "Ringkasan"], ["kalender", "Kalender"] ].map(([id, label]) => <button key={id} role="tab" aria-selected={dashView.tab === id} className={dashView.tab === id ? "active" : ""} onClick={() => setDashView({ tab: id })}>{label}</button>)}
+      </div>
+      {dashView.tab === "kalender" ? <Suspense fallback={<p className="muted">Memuat kalender…</p>}><Calendar go={go} embedded /></Suspense> : <>
       <header className="dash-head" hidden={!dl.opt("head", true)}>
         <p className="dash-greet">{greeting(new Date(now))}{ib.config.setup ? ` · ${hijriLabel(dateKey(now), ib.config.hijriOffset)}` : ""}</p>
         <h1 className="dash-date">{dayLong(now)}</h1>
@@ -322,6 +330,7 @@ export default function Dashboard({ go }: { go: (p: Page) => void }) {
         ))}
       </div>
 
+      </>}
       {adding && (
         <ReminderForm
           categories={[...new Set(reminders.items.map((r) => r.category).filter(Boolean) as string[])]}

@@ -428,15 +428,11 @@ export default function Sidebar({
             />
           </span>
         ) : (
-          <button
-            className="sb-row-main"
-            onClick={() => (r.project ? selectProject(r.project.id) : openNote(r.note!.id))}
-            onDoubleClick={() => setRenaming(r.key)}
-            onKeyDown={(e) => onRowKey(e, r)}
-            title={r.project ? `${r.label}${count ? ` · ${count} tugas terbuka` : ""}` : r.label}
-          >
-            <span
-              className="sb-ico"
+          <>
+            <button
+              type="button" className="sb-ico sb-icon-edit"
+              aria-label={`Ganti ikon ${r.label}`} title="Ganti ikon"
+              disabled={r.project ? access.readOnly(r.project.id) : access.readOnly(effectiveProject(notes, r.note!))}
               onClick={(e) => {
                 if (!(r.project ? access.readOnly(r.project.id) : access.readOnly(effectiveProject(notes, r.note!)))) {
                   e.stopPropagation();
@@ -446,10 +442,19 @@ export default function Sidebar({
               }}
             >
               {r.project ? <ProjectMark p={r.project} size="sm" /> : r.note?.icon ?? "📄"}
-            </span>
+            </button>
+          <button
+            className="sb-row-main"
+            onClick={() => (r.project ? selectProject(r.project.id) : openNote(r.note!.id))}
+            onDoubleClick={() => setRenaming(r.key)}
+            onKeyDown={(e) => onRowKey(e, r)}
+            title={r.project ? `${r.label}${count ? ` · ${count} tugas terbuka` : ""}` : r.label}
+          >
+
             <span className={`sb-label ${r.note && !r.note.title ? "untitled" : ""}`}>{r.label}</span>
             {count > 0 && <span className="sb-count">{count}</span>}
           </button>
+          </>
         )}
         <span className="sb-acts">
           <button className="sb-act" aria-label="Menu" title="Hapus, duplikat, ganti nama, dan lainnya" onClick={(e) => menu.open(e.currentTarget, rowMenu(r))}>

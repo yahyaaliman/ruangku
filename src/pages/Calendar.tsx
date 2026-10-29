@@ -33,6 +33,8 @@ import { removeBlockSmart, REMOVE_MESSAGE } from "../lib/agendaSync";
 import { MEETING_KIND, normalizeLink, type Meeting } from "../lib/meetings";
 import { useMembers } from "../lib/members";
 import { PaneResizer, usePaneWidth } from "../components/Pane";
+import { useJsonSetting } from "../lib/useSetting";
+import { calendarSize, CALENDAR_SIZE } from "../calendar/preferences";
 import { LayoutCheck, LayoutMenu } from "../components/LayoutMenu";
 
 const LAYER_ICON: Record<Layer, typeof Bell> = { blok: CalendarClock, rapat: Handshake, kuliah: GraduationCap, tugas: Circle, pengingat: Bell, milestone: Diamond, sholat: Moon, proyek: FolderKanban, tercatat: Timer, luar: Globe };
@@ -53,40 +55,32 @@ function stored<T>(key: string, fallback: T): T {
     return fallback;
   }
 }
-function store(key: string, v: unknown) {
-  try {
-    localStorage.setItem(key, JSON.stringify(v));
-  } catch {
-    /* abaikan */
-  }
-}
 
-export default function Calendar({ go }: { go: (p: Page) => void }) {
+export default function Calendar({ go, embedded = false }: { go: (p: Page) => void; embedded?: boolean }) {
+  const [size, saveSize] = useJsonSetting("calendar_size", CALENDAR_SIZE);
+  const dimensions = calendarSize(size);
   const toast = useToast();
-  const [view, setView] = useState<CalView>(() => stored("ruangku-cal-view", "bulan"));
-  const [anchor, setAnchor] = useState(() => dateKey());
-  const [layers, setLayers] = useState<Set<Layer>>(() => {
-    const saved = new Set(stored<Layer[]>("ruangku-cal-layers", LAYERS.filter((l) => l.on).map((l) => l.id)));
-    // Lapisan baru (mis. Rapat, Kuliah) langsung tampil walau pilihan lapisan lama sudah tersimpan.
-    const known = new Set(stored<Layer[]>("ruangku-cal-layers-known", ["blok", "tercatat", "tugas", "pengingat", "milestone", "proyek", "sholat", "luar"]));
-    for (const l of LAYERS) if (l.on && !known.has(l.id)) saved.add(l.id);
-    return saved;
+  const [prefs, savePrefs] = useJsonSetting("calendar_preferences", {
+    view: stored<CalView>("ruangku-cal-view", "bulan"),
+    layers: stored<Layer[]>("ruangku-cal-layers", LAYERS.filter(l => l.on).map(l => l.id)),
+    hideDone: stored("ruangku-cal-hidedone", false), side: stored("ruangku-cal-side", true),
   });
-  // Disimpan setelah tampil (bukan saat render) supaya render ganda tidak menghilangkan lapisan baru.
-  useEffect(() => store("ruangku-cal-layers-known", LAYERS.map((l) => l.id)), []);
-  const [hideDone, setHideDone] = useState(() => stored("ruangku-cal-hidedone", false));
+  const view = VIEWS.some(v => v.id === prefs.view) ? prefs.view : "bulan";
+  const setView = (next: CalView | ((v: CalView) => CalView)) => savePrefs(p => ({ ...p, view: typeof next === "function" ? next(p.view) : next }));
+  const layers = useMemo(() => new Set<Layer>(prefs.layers), [prefs.layers]);
+  const setLayers = (next: (cur: Set<Layer>) => Set<Layer>) => savePrefs(p => ({ ...p, layers: [...next(new Set(p.layers))] }));
+  const hideDone = prefs.hideDone;
+  const setHideDone = (hideDone: boolean) => savePrefs(p => ({ ...p, hideDone }));
+  const calSide = prefs.side;
+  const setCalSide = (side: boolean) => savePrefs(p => ({ ...p, side }));
+  const [anchor, setAnchor] = useState(() => dateKey());
   const [pop, setPop] = useState<{ ev: CalEvent; at: Anchor } | null>(null);
   const [create, setCreate] = useState<{ slot: Slot; at: Anchor } | null>(null);
   const [manage, setManage] = useState(false);
   useOpenRequest("calendars", () => setManage(true));
   const [sideW, setSideW, resetSideW] = usePaneWidth("cal-side", 236, 190, 420);
-  const [calSide, setCalSide] = useState(() => stored("ruangku-cal-side", true));
-  useEffect(() => store("ruangku-cal-side", calSide), [calSide]);
   const [now, setNow] = useState(Date.now());
 
-  useEffect(() => store("ruangku-cal-view", view), [view]);
-  useEffect(() => store("ruangku-cal-layers", [...layers]), [layers]);
-  useEffect(() => store("ruangku-cal-hidedone", hideDone), [hideDone]);
   useEffect(() => {
     const t = window.setInterval(() => setNow(Date.now()), 60000);
     return () => window.clearInterval(t);
@@ -318,7 +312,7 @@ export default function Calendar({ go }: { go: (p: Page) => void }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
-      if (e.ctrlKey || e.metaKey || e.altKey || /input|textarea|select/i.test(t.tagName) || t.isContentEditable || pop || create || manage) return;
+      if (e.ctrlKey || e.metaKey || e.altKey || /input|textarea|select|button/i.test(t.tagName) || t.isContentEditable || pop || create || manage) return;
       const k = e.key.toLowerCase();
       if (k === "t") setAnchor(dateKey());
       else if (k === "arrowleft" || k === "j") setAnchor((a) => shiftAnchor(view, a, -1));
@@ -359,7 +353,7 @@ export default function Calendar({ go }: { go: (p: Page) => void }) {
 
   return (
     <Ctx.Provider value={ctx}>
-      <div className="page page-cal">
+      <div className={`page page-cal ${embedded ? "cal-embedded" : ""}`} style={{ "--cal-month-height": `${dimensions.monthHeight}px`, "--cal-height": `${dimensions.height}px` } as React.CSSProperties}>
         <header className="cal-bar">
           <h1 className="cal-h1">Kalender</h1>
           <button className="btn btn-sm" onClick={() => setAnchor(dateKey())} title="Hari ini (T)">
@@ -379,6 +373,10 @@ export default function Calendar({ go }: { go: (p: Page) => void }) {
           </div>
           <span className="spacer" />
           <LayoutMenu title="Atur tampilan kalender" compact>
+            <label className="field">Tinggi kalender: {dimensions.height} px<input aria-label="Tinggi kalender" type="range" min="400" max="1000" step="20" value={dimensions.height} onChange={(e) => saveSize({ ...dimensions, height: Number(e.target.value) })} /></label>
+            <label className="field">Tinggi minggu (bulan): {dimensions.monthHeight} px<input aria-label="Tinggi minggu pada kalender bulan" type="range" min="80" max="220" step="10" value={dimensions.monthHeight} onChange={(e) => saveSize({ ...dimensions, monthHeight: Number(e.target.value) })} /></label>
+            <label className="field">Tinggi per jam: {dimensions.hourHeight} px<input aria-label="Tinggi per jam" type="range" min="32" max="100" step="2" value={dimensions.hourHeight} onChange={(e) => saveSize({ ...dimensions, hourHeight: Number(e.target.value) })} /></label>
+            <button className="btn btn-sm" onClick={() => saveSize(CALENDAR_SIZE)}>Ukuran bawaan</button>
             <LayoutCheck label="Panel kiri (kalender mini, lapisan, libur)" checked={calSide} onChange={setCalSide} />
             <LayoutCheck label="Sembunyikan tugas selesai" checked={hideDone} onChange={setHideDone} />
             <span className="lay-opt-label">Lapisan</span>
@@ -489,7 +487,7 @@ export default function Calendar({ go }: { go: (p: Page) => void }) {
             {view === "bulan" && <MonthView days={range.days} month={a.getMonth()} events={events} />}
             {(view === "minggu" || view === "hari") && (
               <div className={view === "hari" ? "cal-dayview" : "cal-weekview"}>
-                <TimeGridView days={range.days} events={events} now={now} />
+                <TimeGridView days={range.days} events={events} now={now} hourH={dimensions.hourHeight} />
                 {view === "hari" && (
                   <aside className="cal-dayside">
                     <h3>{parseDateKey(anchor).toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long" })}</h3>
