@@ -43,7 +43,7 @@ Hampir semua tampilan Ruangku bisa disesuaikan, dan setiap pilihan tersimpan di 
 
 - **Tema**: ikuti Windows, terang, atau gelap.
 - **Warna aksen**: nila, laut, daun, ungu, jambu, bata, kunyit, atau grafit. Tombol, tautan, dan sorotan ikut berubah, di tema terang maupun gelap.
-- **Ukuran tampilan** 80–150%. Pintasan: **Ctrl+=** memperbesar, **Ctrl+−** memperkecil, atau lewat Ctrl+K → "Ukuran tampilan 100%".
+- **Ukuran tampilan** 80–150%. Pintasan: **Ctrl+=** memperbesar, **Ctrl+−** memperkecil, atau lewat Ctrl+K → "Ukuran tampilan 100%". Ukuran ini tersimpan per komputer dan tidak ikut sinkron akun Google.
 - **Kepadatan**: Ringkas (lebih banyak baris di layar), Nyaman, atau Lega.
 - **Lebar halaman**: Normal, Lebar, atau Penuh untuk layar lebar.
 - **Huruf** (Plus Jakarta Sans, huruf sistem Windows, atau serif), **sudut** (tegas, sedang, membulat), dan **kurangi animasi**.

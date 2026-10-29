@@ -99,19 +99,31 @@ export class DriveClient {
   }
 }
 
+/** Sidik ringkas isi snapshot: id, waktu ubah, dan status hapus tiap record (urutan diabaikan). */
+export function snapshotSignature(records: RawRecord[]): string {
+  return records.map((r) => `${r.id}|${r.updatedAt}|${r.deleted ? 1 : 0}`).sort().join("\n");
+}
+
 /** Each device owns one snapshot. Pull every file (including our own for recovery)
- * before writing; concurrent devices never overwrite each other's files. */
+ * before writing; concurrent devices never overwrite each other's files.
+ * The own snapshot is only uploaded again when its content actually changed. */
 export async function syncAccount(client: Pick<DriveClient, "files" | "read" | "write">, deviceId: string, deps: {
   merge: (records: RawRecord[]) => Promise<unknown>;
   export: () => Promise<RawRecord[]>;
 }) {
   const files = await client.files();
+  const own = files.find(f => f.name === `ruangku-device-${deviceId}.json`);
   // Validate all downloaded files before mutating any local records.
   const incoming: RawRecord[] = [];
-  for (const file of files) incoming.push(...(await client.read(file.id)).records);
+  let ownRecords: RawRecord[] | null = null;
+  for (const file of files) {
+    const snap = await client.read(file.id);
+    if (file.id === own?.id) ownRecords = snap.records;
+    incoming.push(...snap.records);
+  }
   await deps.merge(incoming);
   const records = (await deps.export()).filter(portableRecord);
-  const own = files.find(f => f.name === `ruangku-device-${deviceId}.json`);
+  if (ownRecords && snapshotSignature(ownRecords) === snapshotSignature(records)) return { pulled: incoming.length, pushed: 0 };
   await client.write(own?.id, { format: 1, deviceId, records });
   return { pulled: incoming.length, pushed: records.length };
 }
