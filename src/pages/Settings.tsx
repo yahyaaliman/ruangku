@@ -1,4 +1,5 @@
 // Pengaturan bertab ala Notion: Umum, Widget, Connector, Plugin & ekstensi, Notifikasi, Data & keamanan.
+import { AccountTab } from "../settings/AccountTab";
 import { useState } from "react";
 import { Bell, Blocks, LayoutPanelLeft, Plug, Settings2, ShieldCheck } from "lucide-react";
 import BreakSettings from "../breaks/BreakSettings";
@@ -14,6 +15,7 @@ import type { NavItem } from "../sidebar/Sidebar";
 import "../settings/settings.css";
 
 const TABS = [
+  { id: "akun", label: "Akun Google", icon: ShieldCheck, hint: "Data & pengaturan antarperangkat" },
   { id: "umum", label: "Umum", icon: Settings2, hint: "Tema, sidebar, jalan otomatis" },
   { id: "widget", label: "Widget", icon: LayoutPanelLeft, hint: "Widget desktop" },
   { id: "connector", label: "Connector", icon: Plug, hint: "Claude, ChatGPT, kalender, bot" },
@@ -52,7 +54,7 @@ export default function Settings({ sync, go, moduleNav }: { sync: Sync; go: (pag
       <header className="page-head">
         <div>
           <h1>Pengaturan</h1>
-          <p className="page-sub">Semua data tersimpan di komputer ini. Atur tampilan, widget, connector ke Claude/ChatGPT dan layanan lain, serta modul yang Anda pakai.</p>
+          <p className="page-sub">Data tersimpan lokal; hubungkan akun Google untuk sinkronisasi antarperangkat. Atur tampilan, widget, connector ke Claude/ChatGPT dan layanan lain, serta modul yang Anda pakai.</p>
         </div>
       </header>
       <div className="set-layout">
@@ -68,6 +70,7 @@ export default function Settings({ sync, go, moduleNav }: { sync: Sync; go: (pag
           ))}
         </nav>
         <div className="set-content" role="tabpanel" aria-label={cur.label}>
+          {tab === "akun" && <AccountTab />}
           {tab === "umum" && (
             <>
               <AppearanceSettings />

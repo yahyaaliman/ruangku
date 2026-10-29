@@ -69,7 +69,9 @@ fn record_delete(app: AppHandle, state: State<AppState>, id: String, kind: Strin
 
 #[tauri::command]
 fn records_import(app: AppHandle, state: State<AppState>, records: Vec<db::Record>) -> CmdResult<usize> {
+    let keys: Vec<String> = records.iter().filter(|r| r.kind == "account_preference").filter_map(|r| r.data.get("key").and_then(Value::as_str)).filter(|k| db::portable_setting(k)).map(str::to_owned).collect();
     let n = state.with(|c| db::merge(c, &records))?;
+    if n > 0 { for key in keys { let _ = app.emit("setting-changed", key); } }
     let _ = app.emit("records-changed", "*");
     Ok(n)
 }
@@ -109,6 +111,11 @@ fn setting_set(app: AppHandle, state: State<AppState>, key: String, value: Strin
     // Jendela lain (mis. widget) ikut memperbarui pengaturannya.
     let _ = app.emit("setting-changed", &key);
     Ok(())
+}
+
+#[tauri::command]
+fn account_export(state: State<AppState>) -> CmdResult<Vec<db::Record>> {
+    state.with(|c| db::account_export(c))
 }
 
 // ---------- Sync & backup ----------
@@ -838,6 +845,7 @@ pub fn run() {
             record_save,
             record_delete,
             records_import,
+            account_export,
             records_count,
             records_changed_since,
             records_force,

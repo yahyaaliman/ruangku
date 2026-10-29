@@ -113,6 +113,13 @@ pub fn put_raw(conn: &Connection, rec: &Record) -> rusqlite::Result<()> {
             rec.deleted as i64
         ],
     )?;
+    if rec.kind == "account_preference" && !rec.deleted {
+        if let (Some(key), Some(value)) = (rec.data.get("key").and_then(Value::as_str), rec.data.get("value").and_then(Value::as_str)) {
+            if portable_setting(key) && rec.id == format!("account-pref:{key}") {
+                set_setting_raw(conn, key, value)?;
+            }
+        }
+    }
     Ok(())
 }
 
@@ -373,6 +380,15 @@ pub fn get_setting(conn: &Connection, key: &str) -> rusqlite::Result<Option<Stri
 }
 
 pub fn set_setting(conn: &Connection, key: &str, value: &str) -> rusqlite::Result<()> {
+    if portable_setting(key) {
+        // put_raw writes the setting and its timestamped record together.
+        upsert(conn, &format!("account-pref:{key}"), "account_preference", serde_json::json!({"key": key, "value": value}))?;
+        return Ok(());
+    }
+    set_setting_raw(conn, key, value)
+}
+
+fn set_setting_raw(conn: &Connection, key: &str, value: &str) -> rusqlite::Result<()> {
     conn.execute(
         "INSERT INTO settings (key, value) VALUES (?1, ?2)
          ON CONFLICT(key) DO UPDATE SET value = excluded.value",
@@ -521,5 +537,62 @@ mod tests {
         set_setting(&conn, "k", "1").unwrap();
         set_setting(&conn, "k", "2").unwrap();
         assert_eq!(get_setting(&conn, "k").unwrap().as_deref(), Some("2"));
+    }
+}
+
+/// Only presentation preferences cross devices. Never synchronize credentials,
+/// machine paths, Google/team configuration or device identity.
+pub fn portable_setting(key: &str) -> bool {
+    matches!(key, "theme" | "appearance" | "sidebar_prefs" | "pane_widths" | "dashboard_layout" | "dashboard_view" | "calendar_size" | "calendar_preferences" | "modules_off" |
+        "layout_hari-ini" | "layout_tasks" | "layout_calendar" | "layout_proyek" | "layout_rapat" | "layout_kuliah" | "layout_keuangan" | "layout_okr" | "layout_kpi" | "layout_ibadah" | "layout_evaluasi")
+}
+
+pub fn account_export(conn: &Connection) -> rusqlite::Result<Vec<Record>> {
+    let mut stmt = conn.prepare("SELECT key, value FROM settings")?;
+    let settings: Vec<(String, String)> = stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?.collect::<rusqlite::Result<_>>()?;
+    for (key, value) in settings {
+        let id = format!("account-pref:{key}");
+        if portable_setting(&key) && get(conn, &id)?.is_none() {
+            // Legacy settings have no modification time. Newer remote choices win.
+            put_raw(conn, &Record { id, kind: "account_preference".into(), data: serde_json::json!({"key":key,"value":value}), updated_at: 1, deleted: false })?;
+        }
+    }
+    all(conn)
+}
+
+#[cfg(test)]
+mod account_tests {
+    use super::*;
+    #[test]
+    fn preferences_merge_without_uploading_secrets() {
+        let mut a = open_in_memory().unwrap();
+        let mut b = open_in_memory().unwrap();
+        set_setting(&a, "theme", "dark").unwrap();
+        set_setting(&a, "gcal_config", "private").unwrap();
+        let records = account_export(&a).unwrap();
+        assert_eq!(records.len(), 1);
+        merge(&mut b, &records).unwrap();
+        assert_eq!(get_setting(&b, "theme").unwrap().as_deref(), Some("dark"));
+        assert_eq!(get_setting(&b, "gcal_config").unwrap(), None);
+        set_setting(&b, "theme", "light").unwrap();
+        merge(&mut a, &account_export(&b).unwrap()).unwrap();
+        assert_eq!(get_setting(&a, "theme").unwrap().as_deref(), Some("light"));
+    }
+    #[test]
+    fn imported_preferences_cannot_replace_secrets() {
+        let mut db = open_in_memory().unwrap();
+        let r = Record { id: "account-pref:device_id".into(), kind: "account_preference".into(), data: serde_json::json!({"key":"device_id","value":"attacker"}), updated_at: 10, deleted: false };
+        merge(&mut db, &[r]).unwrap();
+        assert_eq!(get_setting(&db, "device_id").unwrap(), None);
+    }
+    #[test]
+    fn imported_preference_beats_legacy_without_timestamp() {
+        let mut a = open_in_memory().unwrap();
+        let b = open_in_memory().unwrap();
+        set_setting_raw(&a, "theme", "dark").unwrap();
+        account_export(&a).unwrap();
+        set_setting(&b, "theme", "light").unwrap();
+        merge(&mut a, &account_export(&b).unwrap()).unwrap();
+        assert_eq!(get_setting(&a, "theme").unwrap().as_deref(), Some("light"));
     }
 }

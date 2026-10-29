@@ -45,6 +45,7 @@ import CommandPalette, { PaletteAction } from "./components/CommandPalette";
 import { parseQuick } from "./lib/quickParse";
 import { breakAction } from "./breaks/BreakScreen";
 import { consumeRemoteOpen, NEW_ID, requestOpen } from "./lib/deeplink";
+import { useAccountSyncLoop } from "./account/useAccount";
 import { useGoogleSyncLoop } from "./calendar/useGoogle";
 import { dailyUpdateCheck } from "./lib/update";
 import { useWriteGuard } from "./lib/access";
@@ -284,6 +285,7 @@ function Shell() {
   const demo = useDemoBootstrap();
   useTeamSync();
   useGoogleSyncLoop();
+  useAccountSyncLoop();
   useAgendaSync();
   useMcpServer();
   useWriteGuard(useCallback((msg: string) => toast(msg, "error"), [toast]));

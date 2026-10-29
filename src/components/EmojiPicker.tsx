@@ -62,12 +62,12 @@ export function EmojiPicker({ at, onPick, onRemove, onClose }: { at: MenuAt; onP
   }, [at]);
   useEffect(() => {
     const down = (e: MouseEvent) => !ref.current?.contains(e.target as Node) && onClose();
-    const esc = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopImmediatePropagation(); onClose(); } };
     window.addEventListener("mousedown", down, true);
-    window.addEventListener("keydown", esc);
+    window.addEventListener("keydown", esc, true);
     return () => {
       window.removeEventListener("mousedown", down, true);
-      window.removeEventListener("keydown", esc);
+      window.removeEventListener("keydown", esc, true);
     };
   }, [onClose]);
   const groups = useMemo(() => {
@@ -85,7 +85,7 @@ export function EmojiPicker({ at, onPick, onRemove, onClose }: { at: MenuAt; onP
       <div className="emoji-head">
         <label className="search search-sm">
           <Search size={13} />
-          <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari: uang, kuliah, rapat…" />
+          <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && /\p{Extended_Pictographic}/u.test(q.trim())) { e.preventDefault(); pick(q.trim()); } }} placeholder="Cari: uang, kuliah, rapat…" />
         </label>
         <button className="icon-btn sm" title="Acak" aria-label="Ikon acak" onClick={() => pick(ALL_EMOJI[Math.floor(Math.random() * ALL_EMOJI.length)])}>
           <Shuffle size={14} />
@@ -102,7 +102,7 @@ export function EmojiPicker({ at, onPick, onRemove, onClose }: { at: MenuAt; onP
             <p className="emoji-group">{g.name}</p>
             <div className="emoji-grid">
               {g.items.map(([e, k]) => (
-                <button key={e + k} title={k.split(" ")[0]} onClick={() => pick(e)}>
+                <button type="button" aria-label={k} key={e + k} title={k.split(" ")[0]} onClick={() => pick(e)}>
                   {e}
                 </button>
               ))}

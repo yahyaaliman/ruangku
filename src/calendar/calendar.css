@@ -1,7 +1,7 @@
 /* Kalender — kertas, garis tipis, warna proyek sebagai aksen; tanggal merah untuk Minggu & libur. */
-.main:has(.page-cal) { display: flex; flex-direction: column; overflow: hidden; }
+.main:has(.page-cal) { display: flex; flex-direction: column; overflow: auto; }
 .main:has(.page-cal) > .demo-banner { flex: none; }
-.page-cal { padding: 0; max-width: none; flex: 1; min-height: 0; display: flex; flex-direction: column; --red: var(--bata); }
+.page-cal { padding: 0; max-width: none; flex: none; height: var(--cal-height, 640px); min-height: 400px; display: flex; flex-direction: column; --red: var(--bata); }
 .spacer { flex: 1; }
 
 /* Bilah atas */
@@ -53,11 +53,11 @@
 .mini-d.sel i { background: #fff; }
 
 /* ---------- Bulan ---------- */
-.cm { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.cm { flex: 1; overflow-y: auto; min-height: 0; display: flex; flex-direction: column; }
 .cm-head { display: grid; grid-template-columns: repeat(7, 1fr); border-bottom: 1px solid var(--line); }
 .cm-head div { padding: 7px 10px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-3); }
 .cm-head .sun { color: var(--red); }
-.cm-body { flex: 1; min-height: 0; display: grid; grid-template-rows: repeat(6, 1fr); }
+.cm-body { flex: 1; min-height: calc(var(--cal-month-height, 110px) * 6); display: grid; grid-template-rows: repeat(6, 1fr); }
 .cm-week { position: relative; display: grid; grid-template-columns: repeat(7, 1fr); border-bottom: 1px solid var(--line); min-height: 0; overflow: hidden; }
 .cm-cell { position: relative; border-right: 1px solid var(--line); padding: 3px 6px; cursor: default; min-width: 0; }
 .cm-cell:nth-child(7) { border-right: 0; }
@@ -277,3 +277,8 @@
 
 /* Waktu sholat yang dilindungi */
 .cw-band { position: absolute; left: 0; right: 0; z-index: 0; pointer-events: none; background: repeating-linear-gradient(135deg, color-mix(in srgb, #2a8fb0 14%, transparent) 0 5px, transparent 5px 10px); border-top: 1px solid color-mix(in srgb, #2a8fb0 45%, transparent); }
+
+.dash-tabs { margin-bottom: 18px; width: fit-content; }
+.dash-calendar { max-width: none; width: 100%; }
+.cal-embedded { border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+@media (max-width: 800px) { .cal-dayside { display: none; } .cal-body { grid-template-columns: minmax(0, 1fr) !important; } .cal-side, .cal-body > .pane-resizer { display: none; } }
