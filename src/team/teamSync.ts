@@ -27,6 +27,8 @@ export interface PbWorkspace {
   owner: string;
 }
 export interface PbMember {
+  projectAccess?: "all" | "selected";
+  projects?: string[];
   id: string;
   workspace: string;
   email: string;
@@ -44,6 +46,7 @@ export interface Remote {
   members(ws: string): Promise<PbMember[]>;
   find(ws: string, rids: string[]): Promise<PbRecord[]>;
   since(ws: string, cursor: string): Promise<PbRecord[]>;
+  visible?(ws: string): Promise<{ rid: string; kind: string }[]>;
   create(body: Omit<PbRecord, "id" | "updated">): Promise<PbRecord>;
   update(id: string, body: Partial<PbRecord>): Promise<PbRecord>;
 }
@@ -53,6 +56,7 @@ export interface Local {
   list(kind: string): Promise<RawRecord[]>;
   importRecords(r: RawRecord[]): Promise<number>;
   force(r: RawRecord[]): Promise<number>;
+  forget?(ids: string[]): Promise<void>;
   getSetting(k: string): Promise<string | null>;
   setSetting(k: string, v: string): Promise<void>;
 }
@@ -62,6 +66,7 @@ export const localApi: Local = {
   list: (k) => api.list(k),
   importRecords: (r) => api.importRecords(r),
   force: (r) => api.forceRecords(r),
+  forget: (ids) => api.forgetRecords(ids),
   getSetting: (k) => api.getSetting(k),
   setSetting: (k, v) => api.setSetting(k, v),
 };
@@ -78,6 +83,7 @@ export function pbRemote(pb: Pb): Remote {
       }
       return out;
     },
+    visible: (ws) => pb.all("records", { filter: `workspace = ${q(ws)}`, fields: "rid,kind" }),
     since: (ws, cursor) => pb.all<PbRecord>("records", { filter: cursor ? `workspace = ${q(ws)} && updated > ${q(cursor)}` : `workspace = ${q(ws)}`, sort: "updated" }),
     create: (body) => pb.create<PbRecord>("records", body),
     update: (id, body) => pb.update<PbRecord>("records", id, body),
@@ -182,7 +188,7 @@ export interface SyncReport {
   rejected: string[];
 }
 
-const toRaw = (r: PbRecord): RawRecord => ({ id: r.rid, kind: r.kind, data: r.deleted ? null : r.data, updatedAt: r.ts, deleted: !!r.deleted });
+const toRaw = (r: PbRecord): RawRecord => ({ id: r.rid, kind: r.kind, data: r.deleted ? null : r.kind === "project" ? { ...r.data, workspaceId: `ws-${r.workspace}` } : r.data, updatedAt: r.ts, deleted: !!r.deleted });
 
 export async function syncWorkspace(remote: Remote, local: Local, wsRemote: string, me: { userId: string }): Promise<SyncReport> {
   const wsLocal = `ws-${wsRemote}`;
@@ -196,6 +202,15 @@ export async function syncWorkspace(remote: Remote, local: Local, wsRemote: stri
   const ridSet = new Set(st.rids);
   const report: SyncReport = { pushed: 0, pulled: 0, rejected: [] };
 
+  // Reconcile the complete authorized ID set before importing or pushing.
+  // Missing IDs in a successful full listing mean access was revoked, not a remote delete.
+  const revoked = new Set<string>();
+  if (remote.visible && local.forget) {
+    const visible = new Set((await remote.visible(wsRemote)).map(r => r.rid));
+    if ([...visible].some(id => !ridSet.has(id))) st.pull = "";
+    for (const id of ridSet) if (!visible.has(id)) { revoked.add(id); ridSet.delete(id); }
+    if (revoked.size) await local.forget([...revoked]);
+  }
   // ---------- Tarik dulu supaya perubahan teman terlihat ----------
   const incoming = await remote.since(wsRemote, st.pull);
   if (incoming.length) {
@@ -211,7 +226,7 @@ export async function syncWorkspace(remote: Remote, local: Local, wsRemote: stri
   const changed = await local.changedSince(st.push);
   const byId = new Map<string, RawRecord>();
   for (const r of changed) {
-    if (!SHARED_KINDS.includes(r.kind)) continue;
+    if (!SHARED_KINDS.includes(r.kind) || revoked.has(r.id)) continue;
     if (r.deleted ? ridSet.has(r.id) : shared.has(recordProject(r, ix) ?? "")) byId.set(r.id, r);
   }
   // Proyek yang baru dibagikan: kirim seluruh isinya.
@@ -219,11 +234,23 @@ export async function syncWorkspace(remote: Remote, local: Local, wsRemote: stri
     const nset = new Set(newly);
     for (const kind of SHARED_KINDS) for (const r of await local.list(kind)) if (nset.has(recordProject(r, ix) ?? "")) byId.set(r.id, r);
   }
-  const todo = [...byId.values()];
+  const priority = (kind: string) => ["project", "task", "note", "objective", "kpi"].indexOf(kind);
+  const todo = [...byId.values()].sort((a,b) => (priority(a.kind) < 0 ? 99 : priority(a.kind)) - (priority(b.kind) < 0 ? 99 : priority(b.kind)));
+  // Parents must exist before dependent records, even if a child was edited first.
+  const ordered: RawRecord[] = [], visiting = new Set<string>(), done = new Set<string>();
+  const visit = (r: RawRecord) => {
+    if (done.has(r.id)) return;
+    if (visiting.has(r.id)) throw new Error("Relasi proyek/tugas/catatan membentuk siklus. Perbaiki induknya sebelum sinkron.");
+    visiting.add(r.id);
+    const d = r.data || {};
+    for (const id of [recordProject(r, ix), d.parentId, d.taskId, d.objectiveId, d.kpiId, d.targetId]) if (id !== r.id && byId.has(id)) visit(byId.get(id)!);
+    visiting.delete(r.id); done.add(r.id); ordered.push(r);
+  };
+  todo.forEach(visit);
   const existing = new Map((await remote.find(wsRemote, todo.map((r) => r.id))).map((r) => [r.rid, r]));
   const revert: RawRecord[] = [];
   let maxPushed = st.push;
-  for (const r of todo) {
+  for (const r of ordered) {
     const ex = existing.get(r.id);
     const body = { rid: r.id, kind: r.kind, data: r.deleted ? null : r.data, ts: r.updatedAt, deleted: !!r.deleted, project: r.deleted ? ex?.project ?? "" : recordProject(r, ix) ?? "" };
     try {
@@ -266,11 +293,13 @@ export async function syncTeam(team: TeamConfig, local: Local = localApi, remote
     const members = await r.members(ws.id);
     const mine = members.find((m) => m.email.toLowerCase() === team.email.toLowerCase());
     const role = mine?.role ?? (ws.owner === team.userId ? "pemilik" : "pembaca");
-    const wsData = { name: ws.name, serverUrl: team.serverUrl, remoteId: ws.id, role };
+    const grants = mine?.projects?.length ? await new Pb(team.serverUrl, team.token).all<PbRecord>("records", { filter: `workspace = ${q(ws.id)} && kind = 'project'`, fields: "id,rid" }) : [];
+    const projectIds = grants.filter(p => mine!.projects!.includes(p.id)).map(p => p.rid);
+    const wsData = { name: ws.name, serverUrl: team.serverUrl, remoteId: ws.id, role, projectAccess: mine?.projectAccess ?? "all", projectIds };
     const prev = localWs.find((x) => x.id === `ws-${ws.id}`);
     if (!prev || JSON.stringify(prev.data) !== JSON.stringify(wsData)) ups.push({ id: `ws-${ws.id}`, kind: "workspace", data: wsData, updatedAt: now, deleted: false });
     for (const m of members) {
-      const data = { name: m.name || m.email.split("@")[0], email: m.email, role: m.role, wa: m.wa || undefined, telegram: m.telegram || undefined, notifyVia: m.notifyVia ?? [], workspaceId: `ws-${ws.id}`, remoteId: m.id, isMe: m.email.toLowerCase() === team.email.toLowerCase() || undefined };
+      const data = { name: m.name || m.email.split("@")[0], email: m.email, role: m.role, projectAccess: m.projectAccess ?? "all", projectRecordIds: m.projects ?? [], wa: m.wa || undefined, telegram: m.telegram || undefined, notifyVia: m.notifyVia ?? [], workspaceId: `ws-${ws.id}`, remoteId: m.id, isMe: m.email.toLowerCase() === team.email.toLowerCase() || undefined };
       const p = localMembers.find((x) => x.id === `pbm-${m.id}`);
       const keep = p?.data?.telegramChatId ? { telegramChatId: p.data.telegramChatId } : {};
       if (!p || JSON.stringify({ ...p.data, telegramChatId: undefined }) !== JSON.stringify({ ...data, telegramChatId: undefined })) ups.push({ id: `pbm-${m.id}`, kind: "member", data: { ...data, ...keep }, updatedAt: now, deleted: false });
@@ -278,7 +307,17 @@ export async function syncTeam(team: TeamConfig, local: Local = localApi, remote
     for (const lm of localMembers.filter((x) => x.data?.workspaceId === `ws-${ws.id}` && !members.some((m) => `pbm-${m.id}` === x.id))) ups.push({ ...lm, data: null, deleted: true, updatedAt: now });
   }
   // Workspace yang tidak lagi bisa diakses di server ini dihapus dari lokal.
-  for (const w of localWs.filter((x) => x.data?.serverUrl === team.serverUrl && !wss.some((s) => `ws-${s.id}` === x.id))) ups.push({ ...w, data: null, deleted: true, updatedAt: now });
+  for (const w of localWs.filter((x) => x.data?.serverUrl === team.serverUrl && !wss.some((s) => `ws-${s.id}` === x.id))) {
+    const ix = await buildIndex(local), shared = sharedProjects(ix, w.id);
+    const stateKey = `team_state_${w.data.remoteId || w.id.slice(3)}`;
+    const previous: WsState = JSON.parse(await local.getSetting(stateKey) || '{"rids":[]}');
+    const ids = new Set(previous.rids);
+    for (const row of await local.changedSince(0)) if (shared.has(recordProject(row, ix) || "")) ids.add(row.id);
+    for (const m of localMembers) if (m.data?.workspaceId === w.id) ids.add(m.id);
+    if (local.forget) await local.forget([...ids]);
+    await local.setSetting(stateKey, JSON.stringify({ push: 0, pull: "", shared: [], rids: [] }));
+    ups.push({ ...w, data: null, deleted: true, updatedAt: now });
+  }
   if (ups.length) await local.force(ups);
   for (const ws of wss) {
     const rep = await syncWorkspace(r, local, ws.id, { userId: team.userId });

@@ -21,6 +21,10 @@ pub fn apply(conn: &rusqlite::Connection, id: &str, occurrence: i64, action: &st
     }
     // A pre-alert can be completed/snoozed before tick has advanced the series.
     if recurring && data["dueAt"].as_i64() == Some(occurrence) {
+        if data["anchorDay"].is_null() {
+            use chrono::{TimeZone, Datelike};
+            if let Some(at) = chrono::Local.timestamp_millis_opt(occurrence).single() { data["anchorDay"] = at.day().into(); }
+        }
         if let Some(next) = reminders::next_occurrence(&chrono::Local, occurrence, data["repeat"].as_str().unwrap_or("none"), data["anchorDay"].as_u64().map(|n| n as u32), now.max(occurrence)) {
             data["dueAt"] = next.into();
             data["completedCount"] = (data["completedCount"].as_i64().unwrap_or(0) + 1).into();

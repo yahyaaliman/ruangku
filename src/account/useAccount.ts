@@ -44,7 +44,7 @@ export function runAccountSync() {
       await api.accountExport();
       const device = await api.syncStatus();
       const client = new DriveClient(cfg, api.http, secrets, { encode: api.snapshotEncode, decode: api.snapshotDecode });
-      await syncAccount(client, device.deviceId, { merge: api.importRecords, export: api.accountExport });
+      await syncAccount(client, device.deviceId, { merge: api.accountImport, export: api.accountExport });
       await save({ ...cfg, lastSync: Date.now(), lastError: undefined });
     } catch (e) {
       await save({ ...cfg, lastError: errorText(e) });

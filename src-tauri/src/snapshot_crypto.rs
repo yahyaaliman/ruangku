@@ -48,14 +48,11 @@ pub fn password(c: &rusqlite::Connection) -> Result<Option<String>, String> {
 pub fn snapshot_unlock(app: AppHandle, state: State<AppState>, password: String) -> Result<(), String> {
     if password.chars().count() < 12 { return Err("Gunakan kata sandi minimal 12 karakter.".into()); }
     let c = state.conn.lock().map_err(|e| e.to_string())?;
-    if let Some(check) = db::get_setting(&c, "snapshot_password_check").map_err(|e| e.to_string())? { decrypt(&check, &password)?; }
-    let check = encrypt("Ruangku snapshot key", &password)?;
     let store = system::secret_set(&c, SECRET, &password).map_err(|e| e.to_string())?;
     if store != "credman" {
         system::secret_delete(&c, SECRET).map_err(|e| e.to_string())?;
         return Err("Penyimpanan aman Windows tidak tersedia. Kata sandi tidak disimpan; coba lagi dari aplikasi Windows.".into());
     }
-    db::set_setting(&c, "snapshot_password_check", &check).map_err(|e| e.to_string())?;
     db::set_setting(&c, ENABLED, "true").map_err(|e| e.to_string())?;
     let _ = app.emit("setting-changed", ENABLED);
     Ok(())

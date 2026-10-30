@@ -198,7 +198,9 @@ const FAIL_PAGE: &str = "<!doctype html><meta charset=utf-8><title>Ruangku</titl
 pub fn oauth_loopback(url: &str, timeout: Duration, open: impl FnOnce(&str) -> Result<(), String>) -> Result<OAuthResult, String> {
     let listener = TcpListener::bind("127.0.0.1:0").map_err(|e| e.to_string())?;
     let port = listener.local_addr().map_err(|e| e.to_string())?.port();
-    let redirect_uri = format!("http://127.0.0.1:{port}");
+    // Microsoft public desktop clients register http://localhost; its port is ephemeral.
+    let host = if url.starts_with("https://login.microsoftonline.com/") { "localhost" } else { "127.0.0.1" };
+    let redirect_uri = format!("http://{host}:{port}");
     let sep = if url.contains('?') { '&' } else { '?' };
     open(&format!("{url}{sep}redirect_uri={}", pct_encode(&redirect_uri)))?;
     listener.set_nonblocking(true).map_err(|e| e.to_string())?;

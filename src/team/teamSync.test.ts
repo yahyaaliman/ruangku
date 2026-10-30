@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RawRecord } from "../lib/types";
-import { Local, PbRecord, Remote, syncWorkspace } from "./teamSync";
+import { Local, PbRecord, Remote, syncWorkspace, syncTeam } from "./teamSync";
 
 /** Server tiruan dengan aturan peran sederhana (mirip API rules PocketBase). */
 class FakeServer {
@@ -71,10 +71,45 @@ class FakeLocal implements Local {
     return rs.length;
   };
   getSetting = async (k: string) => this.settings[k] ?? null;
+  forget = async (ids: string[]) => { this.rows = this.rows.filter(r => !ids.includes(r.id)); };
   setSetting = async (k: string, v: string) => void (this.settings[k] = v);
 }
 
 describe("sinkron proyek tim", () => {
+  it("purges revoked records and fetches old records again after a regrant", async () => {
+    const srv = new FakeServer(); srv.roles = { u1: "pemilik" };
+    const remote = srv.remote("u1", "a@example.test"), local = new FakeLocal();
+    local.put("p", "project", { name: "A", workspaceId: "ws-W1" });
+    local.put("t", "task", { title: "Private", projectId: "p" });
+    await syncWorkspace(remote, local, "W1", { userId: "u1" });
+    const original = srv.recs.slice();
+    remote.visible = async () => [];
+    remote.since = async () => [];
+    await syncWorkspace(remote, local, "W1", { userId: "u1" });
+    expect(local.rows).toHaveLength(0);
+    remote.visible = async () => original.map(r => ({ rid: r.rid, kind: r.kind }));
+    remote.since = async (_, cursor) => original.filter(r => r.updated > cursor);
+    await syncWorkspace(remote, local, "W1", { userId: "u1" });
+    expect(local.get("t")?.data.title).toBe("Private");
+  });
+  it("purges records when the entire workspace is revoked", async () => {
+    const srv = new FakeServer(), local = new FakeLocal();
+    local.put("ws-W1", "workspace", { name: "Team", serverUrl: "http://test", remoteId: "W1" });
+    local.put("p", "project", { name: "A", workspaceId: "ws-W1" });
+    local.put("t", "task", { title: "Private", projectId: "p" });
+    const remote = srv.remote("u1", "a@example.test"); remote.workspaces = async () => [];
+    await syncTeam({ serverUrl: "http://test", token: "", userId: "u1", email: "a@example.test", name: "A", tokenAt: 0 }, local, remote);
+    expect(local.get("p")).toBeUndefined(); expect(local.get("t")).toBeUndefined();
+    expect(local.get("ws-W1")?.deleted).toBe(true);
+  });
+  it("sends a nested parent before its child even if the child was edited first", async () => {
+    const srv = new FakeServer(); srv.roles = {u1:"pemilik"}; const local = new FakeLocal();
+    local.put("child", "task", {title:"Child", parentId:"parent", projectId:"p"});
+    local.put("parent", "task", {title:"Parent", projectId:"p"});
+    local.put("p", "project", {name:"A", workspaceId:"ws-W1"});
+    await syncWorkspace(srv.remote("u1", "a@example.test"),local,"W1",{userId:"u1"});
+    expect(srv.recs.map(r=>r.rid)).toEqual(["p","parent","child"]);
+  });
   it("hanya proyek yang dibagikan yang terkirim, lalu sampai ke anggota lain", async () => {
     const srv = new FakeServer();
     srv.roles = { u1: "pemilik", u2: "kontributor" };

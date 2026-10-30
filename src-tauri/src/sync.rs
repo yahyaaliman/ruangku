@@ -103,11 +103,12 @@ pub fn run_protected(conn: &mut Connection, folder: &Path, device_id: &str, devi
     // Authenticate all files before any merge or write (wrong passwords never overwrite data).
     for snap in snapshots {
         report.devices_read += 1;
-        report.records_pulled += db::merge(conn, &snap.records).map_err(|e| e.to_string())?;
+        let records = crate::personal_sync::filter(conn, &snap.records).map_err(|e| e.to_string())?;
+        report.records_pulled += db::merge(conn, &records).map_err(|e| e.to_string())?;
     }
 
     // 2. Dorong keadaan lokal (sudah termasuk hasil merge) ke file milik perangkat ini.
-    let records = db::all(conn).map_err(|e| e.to_string())?;
+    let records = crate::personal_sync::filter(conn, &db::all(conn).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
     report.records_pushed = records.len();
     let snap = Snapshot {
         format: 1,
@@ -172,6 +173,25 @@ mod tests {
     fn missing_folder_errors() {
         let mut a = db::open_in_memory().unwrap();
         assert!(run(&mut a, Path::new("/tidak/ada/folder"), "A", "x").is_err());
+    }
+    #[test]
+    fn wrong_password_never_merges_or_overwrites_and_migration_is_retryable() {
+        let cloud = tempfile::tempdir().unwrap();
+        let mut a = db::open_in_memory().unwrap();
+        db::upsert(&a, "secret", "note", json!({"title":"Private"})).unwrap();
+        run(&mut a, cloud.path(), "A", "A").unwrap();
+        let key = "correct horse battery staple";
+        assert!(run_protected(&mut a, cloud.path(), "A", "A", Some(key)).is_err());
+        assert_eq!(migrate(cloud.path(), key).unwrap(), 1);
+        assert_eq!(migrate(cloud.path(), key).unwrap(), 0);
+        let file = sync_dir(cloud.path()).join("device-A.json");
+        let before = fs::read(&file).unwrap();
+        let mut b = db::open_in_memory().unwrap();
+        assert!(run_protected(&mut b, cloud.path(), "A", "A", Some("wrong password value")).is_err());
+        assert!(db::all(&b).unwrap().is_empty());
+        assert_eq!(fs::read(&file).unwrap(), before);
+        run_protected(&mut b, cloud.path(), "B", "B", Some(key)).unwrap();
+        assert!(db::get(&b, "secret").unwrap().is_some());
     }
 }
 

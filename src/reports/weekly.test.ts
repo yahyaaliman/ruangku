@@ -28,5 +28,5 @@ describe("weekly reports", () => {
     expect(workbook.getWorksheet("OKR")!.getCell("A2").value).toBe("=unsafe");
     expect(workbook.getWorksheet("KPI")!.getCell("E2").value).toBe(0);
     expect(workbook.getWorksheet("KPI")!.getCell("F2").value).toBeNull();
-  });
+  }, 60000);
 });

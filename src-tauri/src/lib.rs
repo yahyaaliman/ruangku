@@ -7,6 +7,7 @@ mod files;
 mod preview;
 mod updater;
 mod snapshot_crypto;
+mod personal_sync;
 mod toast_actions;
 mod reminders;
 mod sticky;
@@ -119,7 +120,13 @@ fn setting_set(app: AppHandle, state: State<AppState>, key: String, value: Strin
 
 #[tauri::command]
 fn account_export(state: State<AppState>) -> CmdResult<Vec<db::Record>> {
-    state.with(|c| db::account_export(c))
+    state.with(|c| personal_sync::filter(c, &db::account_export(c)?))
+}
+
+#[tauri::command]
+fn account_import(app: AppHandle, state: State<AppState>, records: Vec<db::Record>) -> CmdResult<usize> {
+    let filtered = state.with(|c| personal_sync::filter(c, &records))?;
+    records_import(app, state, filtered)
 }
 
 // ---------- Sync & backup ----------
@@ -365,11 +372,7 @@ fn fm_preview(path: String) -> CmdResult<preview::Preview> { preview::read(std::
 #[tauri::command]
 fn write_binary_file(path: String, contents: Vec<u8>) -> CmdResult<()> { std::fs::write(path, contents).map_err(err) }
 
-#[tauri::command]
-fn fm_preview(path: String) -> CmdResult<preview::Preview> { preview::read(std::path::Path::new(&path)) }
 
-#[tauri::command]
-fn write_binary_file(path: String, contents: Vec<u8>) -> CmdResult<()> { std::fs::write(path, contents).map_err(err) }
 
 #[tauri::command]
 fn read_text_file(path: String) -> CmdResult<String> {
@@ -866,9 +869,11 @@ pub fn run() {
             record_delete,
             records_import,
             account_export,
+            account_import,
             records_count,
             records_changed_since,
             records_force,
+            records_forget,
             records_remove_demo,
             setting_get,
             setting_set,
@@ -957,4 +962,10 @@ fn snapshot_migrate_folder(state: State<AppState>) -> CmdResult<usize> {
     let folder = db::get_setting(&c, "sync_folder").map_err(err)?.unwrap_or_default();
     if folder.is_empty() { return Ok(0); }
     sync::migrate(Path::new(&folder), &password)
+}
+
+#[tauri::command]
+fn records_forget(app: AppHandle, state: State<AppState>, ids: Vec<String>) -> CmdResult<()> {
+    state.with(|c| { let tx = c.transaction()?; personal_sync::remember(&tx, &ids)?; for id in ids { tx.execute("DELETE FROM records WHERE id = ?1", [&id])?; } tx.commit() })?;
+    let _ = app.emit("records-changed", "*"); Ok(())
 }

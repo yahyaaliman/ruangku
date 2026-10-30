@@ -138,6 +138,11 @@ export async function mockCall(cmd: string, a: Record<string, any>): Promise<unk
     }
     case "records_changed_since":
       return rows.filter((r) => r.updatedAt > a.since).sort((x, y) => x.updatedAt - y.updatedAt);
+    case "records_forget": {
+      persist(rows.filter(r => !a.ids.includes(r.id)));
+      emit("records-changed", "*");
+      return null;
+    }
     case "records_force": {
       for (const r of a.records as RawRecord[]) {
         const i = rows.findIndex((x) => x.id === r.id);
