@@ -7,6 +7,7 @@ function find(app, ws, rid, kind) {
 function allowed(app, ws, uid, project) {
   if (!uid) return false;
   if (app.findRecordById("workspaces", ws).getString("owner") === uid) return true;
+  if (!app.findRecordById("users", uid).getBool("verified")) return false;
   let member;
   try { member = app.findFirstRecordByFilter("members", "workspace = {:w} && user = {:u}", { w: ws, u: uid }); } catch (_) { return false; }
   if (member.getString("role") === "admin" || member.getString("projectAccess") !== "selected") return true;
@@ -17,6 +18,8 @@ function allowed(app, ws, uid, project) {
 }
 function validateMember(e) {
   const ws = e.record.getString("workspace");
+  const old = e.record.original();
+  if (old.getString("email") && old.getString("email") !== e.record.getString("email")) throw new BadRequestError("Email anggota tidak dapat diubah. Undang anggota baru.");
   if (e.record.getString("role") === "pemilik" || e.record.getString("role") === "admin") { e.record.set("projectAccess", "all"); e.record.set("projects", []); }
   for (const id of e.record.getStringSlice("projects")) {
     const p = e.app.findRecordById("records", id);

@@ -267,6 +267,9 @@ export async function syncWorkspace(remote: Remote, local: Local, wsRemote: stri
     } catch (e) {
       const status = (e as { status?: number }).status ?? 0;
       if (status === 0 || status >= 500) throw e; // jaringan/server: coba lagi nanti
+      // A concurrent device may have created this ID after our initial lookup.
+      // Retry a fresh pull instead of treating the uniqueness conflict as rejection.
+      if (!ex && [400, 409].includes(status) && (await remote.find(wsRemote, [r.id])).length) throw new Error("Data baru masuk dari perangkat lain. Sinkronisasi akan dicoba lagi.");
       // Ditolak karena peran: kembalikan ke versi server (atau hapus bila tidak ada di server).
       report.rejected.push(`${r.kind} ${r.data?.title ?? r.data?.name ?? r.id}`);
       revert.push(ex ? toRaw(ex) : { id: r.id, kind: r.kind, data: null, updatedAt: Date.now(), deleted: true });
@@ -280,7 +283,17 @@ export async function syncWorkspace(remote: Remote, local: Local, wsRemote: stri
 }
 
 /** Sinkronkan semua workspace milik pengguna: daftar workspace, anggota, lalu data. */
+const teamOperations = new Map<string, Promise<SyncReport & { workspaces: number }>>();
 export async function syncTeam(team: TeamConfig, local: Local = localApi, remote?: Remote): Promise<SyncReport & { workspaces: number }> {
+  if (remote || local !== localApi) return syncTeamOnce(team, local, remote);
+  const key = `${team.serverUrl}:${team.userId}`;
+  const pending = teamOperations.get(key);
+  if (pending) return pending;
+  const operation = syncTeamOnce(team, local).finally(() => teamOperations.delete(key));
+  teamOperations.set(key, operation);
+  return operation;
+}
+async function syncTeamOnce(team: TeamConfig, local: Local, remote?: Remote): Promise<SyncReport & { workspaces: number }> {
   const pb = new Pb(team.serverUrl, team.token);
   const r = remote ?? pbRemote(pb);
   const wss = await r.workspaces();
@@ -293,13 +306,13 @@ export async function syncTeam(team: TeamConfig, local: Local = localApi, remote
     const members = await r.members(ws.id);
     const mine = members.find((m) => m.email.toLowerCase() === team.email.toLowerCase());
     const role = mine?.role ?? (ws.owner === team.userId ? "pemilik" : "pembaca");
-    const grants = mine?.projects?.length ? await new Pb(team.serverUrl, team.token).all<PbRecord>("records", { filter: `workspace = ${q(ws.id)} && kind = 'project'`, fields: "id,rid" }) : [];
+    const grants = members.some(m => m.projects?.length) ? await new Pb(team.serverUrl, team.token).all<PbRecord>("records", { filter: `workspace = ${q(ws.id)} && kind = 'project'`, fields: "id,rid" }) : [];
     const projectIds = grants.filter(p => mine!.projects!.includes(p.id)).map(p => p.rid);
     const wsData = { name: ws.name, serverUrl: team.serverUrl, remoteId: ws.id, role, projectAccess: mine?.projectAccess ?? "all", projectIds };
     const prev = localWs.find((x) => x.id === `ws-${ws.id}`);
     if (!prev || JSON.stringify(prev.data) !== JSON.stringify(wsData)) ups.push({ id: `ws-${ws.id}`, kind: "workspace", data: wsData, updatedAt: now, deleted: false });
     for (const m of members) {
-      const data = { name: m.name || m.email.split("@")[0], email: m.email, role: m.role, projectAccess: m.projectAccess ?? "all", projectRecordIds: m.projects ?? [], wa: m.wa || undefined, telegram: m.telegram || undefined, notifyVia: m.notifyVia ?? [], workspaceId: `ws-${ws.id}`, remoteId: m.id, isMe: m.email.toLowerCase() === team.email.toLowerCase() || undefined };
+      const data = { name: m.name || m.email.split("@")[0], email: m.email, role: m.role, projectAccess: m.projectAccess ?? "all", projectRecordIds: m.projects ?? [], projectIds: grants.filter(p => m.projects?.includes(p.id)).map(p => p.rid), wa: m.wa || undefined, telegram: m.telegram || undefined, notifyVia: m.notifyVia ?? [], workspaceId: `ws-${ws.id}`, remoteId: m.id, isMe: m.email.toLowerCase() === team.email.toLowerCase() || undefined };
       const p = localMembers.find((x) => x.id === `pbm-${m.id}`);
       const keep = p?.data?.telegramChatId ? { telegramChatId: p.data.telegramChatId } : {};
       if (!p || JSON.stringify({ ...p.data, telegramChatId: undefined }) !== JSON.stringify({ ...data, telegramChatId: undefined })) ups.push({ id: `pbm-${m.id}`, kind: "member", data: { ...data, ...keep }, updatedAt: now, deleted: false });

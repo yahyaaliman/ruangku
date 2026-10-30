@@ -7,7 +7,7 @@ migrate((app) => {
   members.fields.add(new RelationField({ name: "projects", collectionId: records.id, maxSelect: 999, cascadeDelete: false }));
   members.createRule = `(${members.createRule}) && @request.body.user:isset = false`;
   app.save(members);
-  const access = "@request.auth.id != '' && (workspace.owner = @request.auth.id || (@collection.members:grant.workspace ?= workspace && @collection.members:grant.user ?= @request.auth.id && (@collection.members:grant.role ?= 'admin' || @collection.members:grant.projectAccess ?!= 'selected' || @collection.members:grant.projects.rid ?= project)))";
+  const access = "@request.auth.id != '' && (workspace.owner = @request.auth.id || (@request.auth.verified = true && @collection.members:grant.workspace ?= workspace && @collection.members:grant.user ?= @request.auth.id && (@collection.members:grant.role ?= 'admin' || @collection.members:grant.projectAccess ?!= 'selected' || @collection.members:grant.projects.rid ?= project)))";
   records.listRule = access;
   records.viewRule = access;
   records.updateRule = `(${records.updateRule}) && (${access}) && @request.body.assignee_emails:isset = false`;

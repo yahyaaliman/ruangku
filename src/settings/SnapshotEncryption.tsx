@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { LockKeyhole } from "lucide-react";
 import { api, errorText, isDesktop, onEvent } from "../lib/api";
-import { migrateAccountSnapshots } from "../account/useAccount";
+import { migrateAccountSnapshots, unlockSnapshots } from "../account/useAccount";
 import { useToast } from "../components/ui";
 
 export function SnapshotEncryption() {
@@ -14,7 +14,7 @@ export function SnapshotEncryption() {
   }, []);
   async function enable() {
     setBusy(true);
-    try { await api.snapshotUnlock(password); setPassword(""); setAgain(""); toast("Enkripsi aktif pada perangkat ini. Konversikan snapshot lama sebelum sinkronisasi."); }
+    try { await unlockSnapshots(password); setPassword(""); setAgain(""); toast("Enkripsi aktif pada perangkat ini. Konversikan snapshot lama sebelum sinkronisasi."); }
     catch (e) { toast(errorText(e), "error"); } finally { setBusy(false); }
   }
   async function migrate() {

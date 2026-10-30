@@ -27,6 +27,7 @@ const am=await create('members',{workspace:ws.id,email:alice.email,role:'editor'
 await create('members',{workspace:ws.id,email:bob.email,role:'editor',projectAccess:'all'},ownerToken);
 const task = async (rid,project) => create('records',{workspace:ws.id,rid,kind:'task',project,data:{title:rid,projectId:project},ts:2,author:owner.id},ownerToken);
 const ta=await task('ta-'+stamp,a.rid),tb=await task('tb-'+stamp,b.rid);
+assert.equal((await request('PATCH',`/api/collections/records/records/${ta.id}`,{data:{title:'Allowed edit',projectId:a.rid},ts:3},aliceToken)).status,200,'Allowed writes must work');
 const visible=await request('GET',`/api/collections/records/records?filter=${encodeURIComponent(`workspace='${ws.id}'`)}`,undefined,aliceToken);
 assert.equal(visible.status,200); assert.deepEqual(visible.data.items.map(r=>r.rid).sort(),[a.rid,ta.rid].sort(),'Other members must not widen Alice grants');
 assert.equal((await request('GET',`/api/collections/records/records/${tb.id}`,undefined,aliceToken)).status,404);
@@ -37,6 +38,17 @@ assert.ok(forged.status>=400,'Forged project must be rejected');
 const foreignParent=await request('POST','/api/collections/records/records',{workspace:ws.id,rid:'child-'+stamp,kind:'task',project:a.rid,data:{title:'child',projectId:a.rid,parentId:tb.rid},author:alice.id},aliceToken);
 assert.ok(foreignParent.status>=400,'Parent cannot point outside grant');
 const grantSelf=await request('PATCH',`/api/collections/members/records/${am.id}`,{projectAccess:'all'},aliceToken);assert.ok(grantSelf.status>=400);
+// Owning another workspace cannot widen grants here.
+const own=await create('workspaces',{name:'Alice own',owner:alice.id},aliceToken);
+const ownProject=await create('records',{workspace:own.id,rid:'own-'+stamp,kind:'project',project:'own-'+stamp,data:{name:'Own',workspaceId:`ws-${own.id}`},ts:1,author:alice.id},aliceToken);
+assert.ok((await request('PATCH',`/api/collections/members/records/${am.id}`,{projects:[ownProject.id]},ownerToken)).status>=400,'Cross-workspace grants are rejected');
+const unverified=await create('users',{email:`unverified-${stamp}@example.test`,password,passwordConfirm:password,verified:false});
+await create('members',{workspace:ws.id,email:unverified.email,role:'editor',projectAccess:'all'},ownerToken);
+const unverifiedToken=await login('users',unverified.email,password);
+assert.equal((await request('GET',`/api/collections/records/records/${ta.id}`,undefined,unverifiedToken)).status,404,'An unverified email cannot claim an invitation');
+// Deleting a whole tree must accept child tombstones after the parent is deleted.
+assert.equal((await request('PATCH',`/api/collections/records/records/${b.id}`,{deleted:true,data:null,project:b.rid,ts:4},ownerToken)).status,200);
+assert.equal((await request('PATCH',`/api/collections/records/records/${tb.id}`,{deleted:true,data:null,project:b.rid,ts:5},ownerToken)).status,200);
 const revoke=await request('PATCH',`/api/collections/members/records/${am.id}`,{projects:[]},ownerToken);assert.equal(revoke.status,200,JSON.stringify(revoke.data));
 assert.equal((await request('GET',`/api/collections/records/records/${ta.id}`,undefined,aliceToken)).status,404,'Revocation must take effect immediately');
 assert.equal((await request('GET',`/api/collections/records/records?filter=${encodeURIComponent(`workspace='${ws.id}'`)}`,undefined,aliceToken)).data.items.length,0);

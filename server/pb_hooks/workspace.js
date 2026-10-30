@@ -16,6 +16,7 @@ function ruangkuRecompute(app, wsId) {
     if (!uid) {
       try {
         const u = app.findAuthRecordByEmail("users", m.get("email"));
+        if (!u.getBool("verified")) continue;
         uid = u.id;
         m.set("user", uid);
         app.saveNoValidate(m);
@@ -38,6 +39,7 @@ function ruangkuRecompute(app, wsId) {
 
 
 function ruangkuLinkUser(app, user) {
+  if (!user.getBool("verified")) return;
   const invites = app.findRecordsByFilter("members", "email = {:e}", "", 0, 0, { e: user.email() });
   const seen = {};
   for (const m of invites) {

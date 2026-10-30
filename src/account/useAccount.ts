@@ -7,6 +7,8 @@ const EMPTY: GoogleAccount = { clientId: "", connected: false };
 const secrets = { get: api.secretGet, set: api.secretSet };
 let operation: Promise<unknown> | null = null;
 export function useAccount() { return useJsonSetting<GoogleAccount>(ACCOUNT_KEY, EMPTY)[0]; }
+// Keep a password change from racing with an in-flight Drive read/write cycle.
+export function unlockSnapshots(password: string) { return exclusively(() => api.snapshotUnlock(password)); }
 async function load(): Promise<GoogleAccount> { const raw = await api.getSetting(ACCOUNT_KEY); return raw ? JSON.parse(raw) : EMPTY; }
 const save = (c: GoogleAccount) => api.setSetting(ACCOUNT_KEY, JSON.stringify(c));
 function exclusively<T>(run: () => Promise<T>): Promise<T> {
