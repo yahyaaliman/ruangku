@@ -1,3 +1,4 @@
+import { WeeklyExport } from "../reports/WeeklyExport";
 import { useMemo, useState } from "react";
 import { useOpenRequest } from "../lib/deeplink";
 import { flashElement } from "../components/CommandPalette";
@@ -208,6 +209,7 @@ export default function Okr() {
           <p className="page-sub">Objective dan key result per kuartal. Progres dibandingkan dengan waktu yang sudah berjalan.</p>
         </div>
         <div className="btn-row">
+          <WeeklyExport />
           <LayoutMenu layout={ol} title="Atur tampilan OKR">
             <LayoutSeg<number>
               label="Kolom objective"

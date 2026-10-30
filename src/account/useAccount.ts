@@ -43,7 +43,7 @@ export function runAccountSync() {
       // remote preference wins over an unversioned setting on a new device.
       await api.accountExport();
       const device = await api.syncStatus();
-      const client = new DriveClient(cfg, api.http, secrets);
+      const client = new DriveClient(cfg, api.http, secrets, { encode: api.snapshotEncode, decode: api.snapshotDecode });
       await syncAccount(client, device.deviceId, { merge: api.importRecords, export: api.accountExport });
       await save({ ...cfg, lastSync: Date.now(), lastError: undefined });
     } catch (e) {
@@ -65,4 +65,13 @@ export function useAccountSyncLoop() {
     window.addEventListener("online", tick);
     return () => { window.clearTimeout(pending); window.clearInterval(interval); stopRecords(); stopSettings(); window.removeEventListener("online", tick); };
   }, []);
+}
+
+export function migrateAccountSnapshots() {
+  return exclusively(async () => {
+    const cfg = await load();
+    if (!cfg.connected) return 0;
+    const client = new DriveClient(cfg, api.http, secrets, { encode: api.snapshotEncode, decode: api.snapshotDecode });
+    return client.migrate();
+  });
 }

@@ -1,3 +1,4 @@
+import { SignedUpdater } from "./SignedUpdater";
 // Pengaturan keandalan: backup otomatis & pemulihan, penyimpanan rahasia, pembaruan, log & diagnostik.
 import { useCallback, useEffect, useState } from "react";
 import { ArchiveRestore, Copy, Download, ExternalLink, FolderOpen, HardDriveDownload, RefreshCw, ShieldCheck, Stethoscope, Upload } from "lucide-react";
@@ -214,6 +215,7 @@ export function SecurityUpdateSettings() {
         </div>
         <div className="setting-body">
           <h2>Pembaruan aplikasi</h2>
+          <SignedUpdater />
           <p className="muted">Versi terpasang: <b>{version || "–"}</b>. Isi repo GitHub tempat installer Ruangku dirilis (lihat panduan build di README); Ruangku memeriksanya sekali sehari dan memberi tahu bila ada versi baru.</p>
           <div className="set-row">
             <input className="grow" value={repo} onChange={(e) => setRepo(e.target.value)} placeholder="pemilik/ruangku" aria-label="Repo GitHub" />

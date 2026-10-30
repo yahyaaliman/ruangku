@@ -1,3 +1,4 @@
+import { SnapshotEncryption } from "../settings/SnapshotEncryption";
 // Pengaturan bertab ala Notion: Umum, Widget, Connector, Plugin & ekstensi, Notifikasi, Data & keamanan.
 import { AccountTab } from "../settings/AccountTab";
 import { useState } from "react";
@@ -90,6 +91,7 @@ export default function Settings({ sync, go, moduleNav }: { sync: Sync; go: (pag
           )}
           {tab === "data" && (
             <>
+              <SnapshotEncryption />
               <SyncSettings sync={sync} />
               <BackupSettings />
               <SecurityUpdateSettings />

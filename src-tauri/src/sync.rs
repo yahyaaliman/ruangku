@@ -10,6 +10,7 @@
 //! yang menimpa file yang sama.
 
 use crate::db::{self, Record};
+use crate::snapshot_crypto;
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -54,7 +55,7 @@ pub fn write_atomic(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
 
 pub fn read_snapshot(path: &Path) -> Result<Snapshot, String> {
     let text = fs::read_to_string(path).map_err(|e| e.to_string())?;
-    serde_json::from_str(&text).map_err(|e| e.to_string())
+    parse_snapshot(&text)
 }
 
 pub fn run(
@@ -63,6 +64,10 @@ pub fn run(
     device_id: &str,
     device_name: &str,
 ) -> Result<SyncReport, String> {
+    run_protected(conn, folder, device_id, device_name, None)
+}
+
+pub fn run_protected(conn: &mut Connection, folder: &Path, device_id: &str, device_name: &str, password: Option<&str>) -> Result<SyncReport, String> {
     if !folder.is_dir() {
         return Err(format!("Folder sinkronisasi tidak ditemukan: {}", folder.display()));
     }
@@ -74,20 +79,31 @@ pub fn run(
     // 1. Tarik perubahan dari perangkat lain.
     let own = device_file(&dir, device_id);
     let entries = fs::read_dir(&dir).map_err(|e| e.to_string())?;
-    for entry in entries.flatten() {
+    let mut snapshots = Vec::new();
+    for entry in entries {
+        let entry = entry.map_err(|e| e.to_string())?;
         let path = entry.path();
         let name = entry.file_name().to_string_lossy().to_string();
-        if path == own || !name.starts_with("device-") || !name.ends_with(".json") {
-            continue;
-        }
-        match read_snapshot(&path) {
-            Ok(snap) => {
-                report.devices_read += 1;
-                report.records_pulled += db::merge(conn, &snap.records).map_err(|e| e.to_string())?;
+        if !name.starts_with("device-") || !name.ends_with(".json") { continue; }
+        let text = bounded_text(&path)?;
+        let encrypted = snapshot_crypto::is_encrypted(&text);
+        if encrypted || password.is_some() {
+            let password = password.ok_or("Folder berisi snapshot terenkripsi. Aktifkan enkripsi dengan kata sandi yang sama.")?;
+            if !encrypted { return Err("Snapshot lama belum terenkripsi. Jalankan konversi snapshot di pengaturan.".into()); }
+            let plain = snapshot_crypto::decrypt(&text, password)?;
+            let snap = parse_snapshot(&plain)?;
+            if path != own { snapshots.push(snap); }
+        } else if path != own {
+            match parse_snapshot(&text) {
+                Ok(snap) => snapshots.push(snap),
+                Err(e) => report.warnings.push(format!("{name}: {e}")),
             }
-            // File yang sedang diunggah cloud bisa terbaca setengah; coba lagi nanti.
-            Err(e) => report.warnings.push(format!("{name}: {e}")),
         }
+    }
+    // Authenticate all files before any merge or write (wrong passwords never overwrite data).
+    for snap in snapshots {
+        report.devices_read += 1;
+        report.records_pulled += db::merge(conn, &snap.records).map_err(|e| e.to_string())?;
     }
 
     // 2. Dorong keadaan lokal (sudah termasuk hasil merge) ke file milik perangkat ini.
@@ -100,7 +116,9 @@ pub fn run(
         written_at: db::now_ms(),
         records,
     };
-    let bytes = serde_json::to_vec_pretty(&snap).map_err(|e| e.to_string())?;
+    let plain = serde_json::to_string(&snap).map_err(|e| e.to_string())?;
+    let text = match password { Some(p) => snapshot_crypto::encrypt(&plain, p)?, None => plain };
+    let bytes = text.into_bytes();
     write_atomic(&own, &bytes).map_err(|e| format!("Gagal menulis snapshot: {e}"))?;
 
     report.finished_at = db::now_ms();
@@ -155,4 +173,35 @@ mod tests {
         let mut a = db::open_in_memory().unwrap();
         assert!(run(&mut a, Path::new("/tidak/ada/folder"), "A", "x").is_err());
     }
+}
+
+fn parse_snapshot(text: &str) -> Result<Snapshot, String> {
+    let snapshot: Snapshot = serde_json::from_str(text).map_err(|e| e.to_string())?;
+    if snapshot.format != 1 || snapshot.device_id.is_empty() { return Err("Format snapshot tidak didukung.".into()); }
+    Ok(snapshot)
+}
+fn bounded_text(path: &Path) -> Result<String, String> {
+    use std::io::Read;
+    let mut text = String::new();
+    fs::File::open(path).map_err(|e| e.to_string())?.take(32 * 1024 * 1024 + 1).read_to_string(&mut text).map_err(|e| e.to_string())?;
+    if text.len() > 32 * 1024 * 1024 { return Err("Snapshot terlalu besar.".into()); }
+    Ok(text)
+}
+/// Explicit migration only, while other devices are paused. Already encrypted files
+/// are authenticated and left unchanged, so retrying after interruption is safe.
+pub fn migrate(folder: &Path, password: &str) -> Result<usize, String> {
+    let dir = sync_dir(folder);
+    if !dir.exists() { return Ok(0); }
+    let mut pending = Vec::new();
+    for entry in fs::read_dir(dir).map_err(|e| e.to_string())? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let name = entry.file_name().to_string_lossy().to_string();
+        if !name.starts_with("device-") || !name.ends_with(".json") { continue; }
+        let text = bounded_text(&entry.path())?;
+        if snapshot_crypto::is_encrypted(&text) { parse_snapshot(&snapshot_crypto::decrypt(&text, password)?)?; }
+        else { parse_snapshot(&text)?; pending.push((entry.path(), snapshot_crypto::encrypt(&text, password)?)); }
+    }
+    let count = pending.len();
+    for (path, text) in pending { write_atomic(&path, text.as_bytes()).map_err(|e| e.to_string())?; }
+    Ok(count)
 }

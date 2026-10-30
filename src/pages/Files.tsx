@@ -1,3 +1,4 @@
+import { FilePreview } from "../components/FilePreview";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft, ArrowRight, ArrowUp, ClipboardPaste, Copy, ExternalLink, Eye, EyeOff, File, FileArchive, FileImage,
@@ -510,6 +511,7 @@ export default function Files() {
               <>
                 <div className="detail-icon"><FileIcon e={one} /></div>
                 <h2 className="detail-name">{one.name}</h2>
+                <FilePreview file={one} />
                 <dl className="detail-list">
                   <div><dt>Jenis</dt><dd>{one.isDir ? "Folder" : KIND_LABEL[one.ext] ?? one.ext.toUpperCase()}</dd></div>
                   <div>

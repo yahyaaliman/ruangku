@@ -14,6 +14,7 @@ use serde_json::Value;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Fired {
+    pub occurrence: i64,
     pub id: String,
     pub title: String,
     pub body: String,
@@ -115,7 +116,7 @@ where
                 format!("Sekarang, pukul {}", fmt_time(tz, due))
             };
             let body = if notes.is_empty() { when } else { format!("{when}\n{notes}") };
-            fired.push(Fired { id: rec.id.clone(), title, body });
+            fired.push(Fired { id: rec.id.clone(), title, body, occurrence: due });
             obj.insert("firedFor".into(), Value::from(due));
             changed = true;
         }
@@ -137,6 +138,9 @@ where
         }
 
         if changed {
+            if obj.get("firedFor").and_then(Value::as_i64) == Some(due) {
+                obj.insert("toastDueAt".into(), obj.get("dueAt").cloned().unwrap_or(Value::Null));
+            }
             db::upsert(conn, &rec.id, &rec.kind, data)?;
         }
     }

@@ -59,7 +59,7 @@ async function call<T>(cmd: string, args: Record<string, unknown> = {}): Promise
   return mockCall(cmd, args) as Promise<T>;
 }
 
-export type AppEvent = "records-changed" | "sync-done" | "setting-changed" | "widget-config" | "navigate" | "widget-open-settings" | "capture-open" | "break-state" | "bot-event" | "team-sync" | "team-remote-change" | "team-realtime" | "mcp-request";
+export type AppEvent = "updater-progress" | "records-changed" | "sync-done" | "setting-changed" | "widget-config" | "navigate" | "widget-open-settings" | "capture-open" | "break-state" | "bot-event" | "team-sync" | "team-remote-change" | "team-realtime" | "mcp-request";
 
 /** True di dalam jendela catat cepat. */
 export const isCapture = typeof window !== "undefined" && (Boolean((window as any).__RUANGKU_CAPTURE__) || /^#\/?capture$/.test(window.location.hash));
@@ -110,6 +110,10 @@ export const api = {
   getSetting: (key: string) => call<string | null>("setting_get", { key }),
   setSetting: (key: string, value: string) => call<void>("setting_set", { key, value }),
 
+  snapshotUnlock: (password: string) => call<void>("snapshot_unlock", { password }),
+  snapshotEncode: (text: string) => call<string>("snapshot_encode", { text }),
+  snapshotDecode: (text: string, migrate = false) => call<string>("snapshot_decode", { text, migrate }),
+  snapshotMigrateFolder: () => call<number>("snapshot_migrate_folder"),
   syncStatus: () => call<SyncStatus>("sync_status"),
   syncNow: () => call<SyncReport>("sync_now"),
   backupExport: (path: string) => call<number>("backup_export", { path }),
@@ -125,12 +129,15 @@ export const api = {
   trash: (paths: string[]) => call<number>("fm_trash", { paths }),
   search: (root: string, query: string) => call<FsEntry[]>("fm_search", { root, query }),
   dirSize: (path: string) => call<[number, number]>("fm_dir_size", { path }),
+  filePreview: (path: string) => call<import("../components/FilePreview").PreviewData>("fm_preview", { path }),
   stat: (path: string) => call<FsEntry | null>("fm_stat", { path }),
   open: (path: string) => call<void>("fm_open", { path }),
   reveal: (path: string) => call<void>("fm_reveal", { path }),
 
   autostartGet: () => call<boolean>("autostart_get"),
   autostartSet: (enabled: boolean) => call<void>("autostart_set", { enabled }),
+  updaterCheck: () => call<import("../settings/SignedUpdater").SignedUpdate>("updater_check"),
+  updaterInstall: (version: string) => call<void>("updater_install", { version }),
   notifyTest: () => call<void>("notify_test"),
   notifySend: (title: string, body: string) => call<void>("notify_send", { title, body }),
   captureHide: () => call<void>("capture_hide"),
@@ -302,4 +309,15 @@ export function errorText(e: unknown): string {
   if (typeof e === "string") return e;
   if (e instanceof Error) return e.message;
   return "Terjadi kesalahan yang tidak dikenal.";
+}
+
+export async function saveBinaryFile(title: string, name: string, bytes: Uint8Array, mime: string, ext: string): Promise<string | null> {
+  if (!isDesktop) {
+    const url = URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: mime }));
+    const a = document.createElement("a"); a.href = url; a.download = name; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000); return name;
+  }
+  const path = await pickSavePath(title, name, { name: ext.toUpperCase(), extensions: [ext] });
+  if (!path) return null;
+  await call("write_binary_file", { path, contents: Array.from(bytes) }); return path;
 }
