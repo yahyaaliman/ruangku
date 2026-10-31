@@ -13,44 +13,6 @@
 //   RUANGKU_WA_GRAPH         versi Graph API, default v23.0
 
 /** Hitung ulang daftar peran satu workspace dari anggotanya. */
-function ruangkuRecompute(app, wsId) {
-  const LEVEL = { pemilik: 5, admin: 4, editor: 3, kontributor: 2, pembaca: 1 };
-  let ws;
-  try {
-    ws = app.findRecordById("workspaces", wsId);
-  } catch (_) {
-    return;
-  }
-  const lists = { readers: [], writers: [], editors: [], admins: [] };
-  const add = (key, id) => lists[key].indexOf(id) < 0 && lists[key].push(id);
-  const owner = ws.get("owner");
-  if (owner) ["readers", "writers", "editors", "admins"].forEach((k) => add(k, owner));
-  const members = app.findRecordsByFilter("members", "workspace = {:w}", "", 0, 0, { w: wsId });
-  for (const m of members) {
-    let uid = m.get("user");
-    if (!uid) {
-      try {
-        const u = app.findAuthRecordByEmail("users", m.get("email"));
-        uid = u.id;
-        m.set("user", uid);
-        app.saveNoValidate(m);
-      } catch (_) {
-        continue; // belum mendaftar
-      }
-    }
-    const lv = LEVEL[m.get("role")] || 0;
-    if (lv >= 1) add("readers", uid);
-    if (lv >= 2) add("writers", uid);
-    if (lv >= 3) add("editors", uid);
-    if (lv >= 4) add("admins", uid);
-  }
-  ws.set("readers", lists.readers);
-  ws.set("writers", lists.writers);
-  ws.set("editors", lists.editors);
-  ws.set("admins", lists.admins);
-  app.saveNoValidate(ws);
-}
-
 // Pemilik otomatis menjadi anggota berperan "pemilik".
 onRecordAfterCreateSuccess((e) => {
   try {
@@ -66,7 +28,7 @@ onRecordAfterCreateSuccess((e) => {
   } catch (err) {
     console.log("ruangku: gagal menambah pemilik", err);
   }
-  ruangkuRecompute(e.app, e.record.id);
+  require(`${__hooks}/workspace.js`).ruangkuRecompute(e.app, e.record.id);
   e.next();
 }, "workspaces");
 
@@ -82,51 +44,23 @@ onRecordUpdateRequest((e) => {
   e.next();
 }, "members");
 
-onRecordAfterCreateSuccess((e) => (ruangkuRecompute(e.app, e.record.get("workspace")), e.next()), "members");
-onRecordAfterUpdateSuccess((e) => (ruangkuRecompute(e.app, e.record.get("workspace")), e.next()), "members");
-onRecordAfterDeleteSuccess((e) => (ruangkuRecompute(e.app, e.record.get("workspace")), e.next()), "members");
+onRecordAfterCreateSuccess((e) => (require(`${__hooks}/workspace.js`).ruangkuRecompute(e.app, e.record.get("workspace")), e.next()), "members");
+onRecordAfterUpdateSuccess((e) => (require(`${__hooks}/workspace.js`).ruangkuRecompute(e.app, e.record.get("workspace")), e.next()), "members");
+onRecordAfterDeleteSuccess((e) => (require(`${__hooks}/workspace.js`).ruangkuRecompute(e.app, e.record.get("workspace")), e.next()), "members");
 
 // Pengguna baru mendaftar / masuk: tautkan ke undangan anggota dengan email yang sama.
-function ruangkuLinkUser(app, user) {
-  const invites = app.findRecordsByFilter("members", "email = {:e}", "", 0, 0, { e: user.email() });
-  const seen = {};
-  for (const m of invites) {
-    if (m.get("user") !== user.id) {
-      m.set("user", user.id);
-      app.saveNoValidate(m);
-    }
-    const w = m.get("workspace");
-    if (!seen[w]) {
-      seen[w] = true;
-      ruangkuRecompute(app, w);
-    }
-  }
-}
-onRecordAfterCreateSuccess((e) => (ruangkuLinkUser(e.app, e.record), e.next()), "users");
-onRecordAuthRequest((e) => (ruangkuLinkUser(e.app, e.record), e.next()), "users");
+onRecordAfterCreateSuccess((e) => (require(`${__hooks}/workspace.js`).ruangkuLinkUser(e.app, e.record), e.next()), "users");
+onRecordAuthRequest((e) => (require(`${__hooks}/workspace.js`).ruangkuLinkUser(e.app, e.record), e.next()), "users");
 
 // Isi assignee_emails tidak boleh dipalsukan: dihitung dari data.assignees + anggota workspace.
-function ruangkuAssignees(app, rec) {
-  const data = rec.get("data") || {};
-  const ids = (data && data.assignees) || [];
-  const emails = [];
-  for (const id of ids) {
-    const rid = String(id).replace(/^pbm-/, "");
-    try {
-      const m = app.findRecordById("members", rid);
-      if (m.get("workspace") === rec.get("workspace")) emails.push(m.get("email"));
-    } catch (_) {}
-  }
-  rec.set("assignee_emails", emails.join(","));
-}
-onRecordCreateRequest((e) => (ruangkuAssignees(e.app, e.record), e.next()), "records");
+onRecordCreateRequest((e) => (require(`${__hooks}/workspace.js`).ruangkuAssignees(e.app, e.record), e.next()), "records");
 onRecordUpdateRequest((e) => {
   // Penilaian izin memakai nilai lama assignee_emails; nilai baru dihitung sesudahnya.
   e.next();
 }, "records");
 onRecordAfterUpdateSuccess((e) => {
   const before = e.record.get("assignee_emails");
-  ruangkuAssignees(e.app, e.record);
+  require(`${__hooks}/workspace.js`).ruangkuAssignees(e.app, e.record);
   if (before !== e.record.get("assignee_emails")) e.app.saveNoValidate(e.record);
   e.next();
 }, "records");

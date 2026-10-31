@@ -7,6 +7,8 @@ const EMPTY: GoogleAccount = { clientId: "", connected: false };
 const secrets = { get: api.secretGet, set: api.secretSet };
 let operation: Promise<unknown> | null = null;
 export function useAccount() { return useJsonSetting<GoogleAccount>(ACCOUNT_KEY, EMPTY)[0]; }
+// Keep a password change from racing with an in-flight Drive read/write cycle.
+export function unlockSnapshots(password: string) { return exclusively(() => api.snapshotUnlock(password)); }
 async function load(): Promise<GoogleAccount> { const raw = await api.getSetting(ACCOUNT_KEY); return raw ? JSON.parse(raw) : EMPTY; }
 const save = (c: GoogleAccount) => api.setSetting(ACCOUNT_KEY, JSON.stringify(c));
 function exclusively<T>(run: () => Promise<T>): Promise<T> {
@@ -43,8 +45,8 @@ export function runAccountSync() {
       // remote preference wins over an unversioned setting on a new device.
       await api.accountExport();
       const device = await api.syncStatus();
-      const client = new DriveClient(cfg, api.http, secrets);
-      await syncAccount(client, device.deviceId, { merge: api.importRecords, export: api.accountExport });
+      const client = new DriveClient(cfg, api.http, secrets, { encode: api.snapshotEncode, decode: api.snapshotDecode });
+      await syncAccount(client, device.deviceId, { merge: api.accountImport, export: api.accountExport });
       await save({ ...cfg, lastSync: Date.now(), lastError: undefined });
     } catch (e) {
       await save({ ...cfg, lastError: errorText(e) });
@@ -65,4 +67,13 @@ export function useAccountSyncLoop() {
     window.addEventListener("online", tick);
     return () => { window.clearTimeout(pending); window.clearInterval(interval); stopRecords(); stopSettings(); window.removeEventListener("online", tick); };
   }, []);
+}
+
+export function migrateAccountSnapshots() {
+  return exclusively(async () => {
+    const cfg = await load();
+    if (!cfg.connected) return 0;
+    const client = new DriveClient(cfg, api.http, secrets, { encode: api.snapshotEncode, decode: api.snapshotDecode });
+    return client.migrate();
+  });
 }

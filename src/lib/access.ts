@@ -10,6 +10,8 @@ import type { Item } from "./types";
 interface Ws {
   name: string;
   role?: Role;
+  projectAccess?: "all" | "selected";
+  projectIds?: string[];
 }
 interface P {
   id: string;
@@ -26,7 +28,9 @@ export function roleFor(projectId: string | undefined, projects: P[], workspaces
     .filter(Boolean)
     .pop();
   if (!wsId) return "pemilik";
-  return workspaces.find((w) => w.id === wsId)?.role ?? "pemilik";
+  const ws = workspaces.find((w) => w.id === wsId);
+  if (!ws || (ws.projectAccess === "selected" && !["pemilik", "admin"].includes(ws.role || "") && !ws.projectIds?.includes(projectId))) return "pembaca";
+  return ws.role ?? "pembaca";
 }
 
 const SHARED_SCOPE = new Set(["project", "task", "timeblock", "note", "objective", "keyresult", "kpi", "kpientry", "reminder", "filemeta", "comment", "ledger", "reference", "meeting", "meetingseries", "course", "account", "budget", "recurring"]);
@@ -35,7 +39,7 @@ const SHARED_SCOPE = new Set(["project", "task", "timeblock", "note", "objective
 export function writeGuard(kind: string, id: string, data: unknown | null): string | null {
   if (!SHARED_SCOPE.has(kind)) return null;
   const workspaces = peek<Ws>("workspace");
-  if (!workspaces.some((w) => w.role === "pembaca")) return null;
+  if (!workspaces.some((w) => w.role === "pembaca" || w.projectAccess === "selected") && !peek<P>("project").some(p => p.workspaceId && !workspaces.some(w => w.id === p.workspaceId))) return null;
   const projects = peek<P>("project") as unknown as P[];
   const prev = peek(kind).find((x) => x.id === id);
   const ix = buildIndexFrom({ project: peek("project"), task: peek("task"), note: peek("note"), objective: peek("objective"), kpi: peek("kpi") });

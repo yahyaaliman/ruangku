@@ -63,7 +63,7 @@ export async function loginAccount(clientId: string, clientSecret: string, previ
 
 export class DriveClient {
   private access = "";
-  constructor(private cfg: GoogleAccount, private http: Http, private secrets: Secrets) {}
+  constructor(private cfg: GoogleAccount, private http: Http, private secrets: Secrets, private codec = { encode: async (text: string) => text, decode: async (text: string, _migrate = false) => text }) {}
   private async refresh() {
     const refresh = await this.secrets.get(REFRESH_KEY);
     if (!refresh) throw new Error("Masuk kembali dengan Google untuk melanjutkan sinkronisasi.");
@@ -89,9 +89,17 @@ export class DriveClient {
     } while (page);
     return files.filter(f => /^ruangku-device-[\w-]+\.json$/.test(f.name));
   }
-  async read(id: string) { return parseSnapshot(await this.request("GET", `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(id)}?alt=media`)); }
+  async raw(id: string) { return this.request("GET", `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(id)}?alt=media`); }
+  async read(id: string) { return parseSnapshot(await this.codec.decode(await this.raw(id))); }
+  async migrate() {
+    const files = await this.files();
+    const pending = [];
+    for (const file of files) { const raw = await this.raw(file.id); const snap = parseSnapshot(await this.codec.decode(raw, true)); if (!JSON.parse(raw).encrypted) pending.push({ id: file.id, raw, snap }); }
+    for (const p of pending) { if (await this.raw(p.id) !== p.raw) throw new Error("Snapshot berubah saat konversi. Jeda perangkat lain lalu coba lagi."); await this.write(p.id, p.snap); }
+    return pending.length;
+  }
   async write(id: string | undefined, snap: Snapshot) {
-    const body = JSON.stringify(snap);
+    const body = await this.codec.encode(JSON.stringify(snap));
     if (id) { await this.request("PATCH", `https://www.googleapis.com/upload/drive/v3/files/${encodeURIComponent(id)}?uploadType=media`, body); return; }
     const boundary = `ruangku_${randomString(24)}`;
     const metadata = JSON.stringify({ name: `ruangku-device-${snap.deviceId}.json`, parents: ["appDataFolder"], mimeType: "application/json" });

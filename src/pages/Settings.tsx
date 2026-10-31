@@ -1,3 +1,5 @@
+import { ExternalSettings } from "../integrations/ExternalSettings";
+import { SnapshotEncryption } from "../settings/SnapshotEncryption";
 // Pengaturan bertab ala Notion: Umum, Widget, Connector, Plugin & ekstensi, Notifikasi, Data & keamanan.
 import { AccountTab } from "../settings/AccountTab";
 import { useState } from "react";
@@ -80,7 +82,7 @@ export default function Settings({ sync, go, moduleNav }: { sync: Sync; go: (pag
             </>
           )}
           {tab === "widget" && <WidgetTab />}
-          {tab === "connector" && <ConnectorsTab go={go} sync={sync} openTab={setTab} />}
+          {tab === "connector" && <><ConnectorsTab go={go} sync={sync} openTab={setTab} /><ExternalSettings /></>}
           {tab === "plugin" && <PluginsTab go={go} openTab={setTab} />}
           {tab === "notifikasi" && (
             <>
@@ -90,6 +92,7 @@ export default function Settings({ sync, go, moduleNav }: { sync: Sync; go: (pag
           )}
           {tab === "data" && (
             <>
+              <SnapshotEncryption />
               <SyncSettings sync={sync} />
               <BackupSettings />
               <SecurityUpdateSettings />

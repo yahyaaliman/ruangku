@@ -4,6 +4,11 @@ mod capture;
 mod net;
 mod db;
 mod files;
+mod preview;
+mod updater;
+mod snapshot_crypto;
+mod personal_sync;
+mod toast_actions;
 mod reminders;
 mod sticky;
 mod notify;
@@ -115,7 +120,13 @@ fn setting_set(app: AppHandle, state: State<AppState>, key: String, value: Strin
 
 #[tauri::command]
 fn account_export(state: State<AppState>) -> CmdResult<Vec<db::Record>> {
-    state.with(|c| db::account_export(c))
+    state.with(|c| personal_sync::filter(c, &db::account_export(c)?))
+}
+
+#[tauri::command]
+fn account_import(app: AppHandle, state: State<AppState>, records: Vec<db::Record>) -> CmdResult<usize> {
+    let filtered = state.with(|c| personal_sync::filter(c, &records))?;
+    records_import(app, state, filtered)
 }
 
 // ---------- Sync & backup ----------
@@ -156,7 +167,7 @@ fn do_sync(app: &AppHandle) -> CmdResult<sync::SyncReport> {
         .ok_or("Folder sinkronisasi belum dipilih. Atur di Pengaturan.")?;
     let result = {
         let mut c = state.conn.lock().map_err(|_| "Database sedang terkunci.".to_string())?;
-        let r = sync::run(&mut c, Path::new(&folder), &state.device_id, &state.device_name);
+        let r = snapshot_crypto::password(&c).and_then(|password| sync::run_protected(&mut c, Path::new(&folder), &state.device_id, &state.device_name, password.as_deref()));
         match &r {
             Ok(rep) => {
                 let _ = db::set_setting(&c, "last_sync", &rep.finished_at.to_string());
@@ -354,6 +365,14 @@ fn open_url(url: String) -> CmdResult<()> {
 fn write_text_file(path: String, contents: String) -> CmdResult<()> {
     std::fs::write(&path, contents).map_err(err)
 }
+
+#[tauri::command]
+fn fm_preview(path: String) -> CmdResult<preview::Preview> { preview::read(std::path::Path::new(&path)) }
+
+#[tauri::command]
+fn write_binary_file(path: String, contents: Vec<u8>) -> CmdResult<()> { std::fs::write(path, contents).map_err(err) }
+
+
 
 #[tauri::command]
 fn read_text_file(path: String) -> CmdResult<String> {
@@ -652,7 +671,7 @@ fn start_background_jobs(app: AppHandle) {
         if let Ok(list) = fired {
             if !list.is_empty() {
                 for f in &list {
-                    let _ = a.notification().builder().title(&f.title).body(&f.body).show();
+                    if toast_actions::show(&a, f).is_err() { let _ = a.notification().builder().title(&f.title).body(&f.body).show(); }
                 }
                 let _ = a.emit("records-changed", "reminder");
             }
@@ -767,6 +786,8 @@ pub fn run() {
                 })
                 .build(),
         )
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .manage(updater::PendingUpdate::default())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
@@ -797,6 +818,8 @@ pub fn run() {
                 system::log_write(&dir, "INFO", &format!("Ruangku {} dimulai", app.package_info().version));
             }
 
+            #[cfg(windows)]
+            if let Err(e) = winrt_toast_reborn::register("com.ruangku.app", "Ruangku", None) { eprintln!("Registrasi toast: {e}"); }
             build_tray(app.handle())?;
             {
                 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut};
@@ -846,9 +869,11 @@ pub fn run() {
             record_delete,
             records_import,
             account_export,
+            account_import,
             records_count,
             records_changed_since,
             records_force,
+            records_forget,
             records_remove_demo,
             setting_get,
             setting_set,
@@ -866,7 +891,15 @@ pub fn run() {
             fm_trash,
             fm_search,
             fm_dir_size,
+            snapshot_crypto::snapshot_unlock,
+            snapshot_crypto::snapshot_encode,
+            snapshot_crypto::snapshot_decode,
+            snapshot_migrate_folder,
+            updater::updater_check,
+            updater::updater_install,
             fm_stat,
+            fm_preview,
+            write_binary_file,
             fm_open,
             fm_reveal,
             autostart_get,
@@ -920,4 +953,19 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("gagal menjalankan Ruangku");
+}
+
+#[tauri::command]
+fn snapshot_migrate_folder(state: State<AppState>) -> CmdResult<usize> {
+    let c = state.conn.lock().map_err(|e| e.to_string())?;
+    let password = snapshot_crypto::password(&c)?.ok_or("Aktifkan enkripsi terlebih dahulu.")?;
+    let folder = db::get_setting(&c, "sync_folder").map_err(err)?.unwrap_or_default();
+    if folder.is_empty() { return Ok(0); }
+    sync::migrate(Path::new(&folder), &password)
+}
+
+#[tauri::command]
+fn records_forget(app: AppHandle, state: State<AppState>, ids: Vec<String>) -> CmdResult<()> {
+    state.with(|c| { let tx = c.transaction()?; personal_sync::remember(&tx, &ids)?; for id in ids { tx.execute("DELETE FROM records WHERE id = ?1", [&id])?; } tx.commit() })?;
+    let _ = app.emit("records-changed", "*"); Ok(())
 }

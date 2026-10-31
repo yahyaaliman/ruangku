@@ -1,3 +1,4 @@
+import { WeeklyExport } from "../reports/WeeklyExport";
 import { useEffect, useMemo, useState } from "react";
 import { BarChart3, ChevronLeft, ChevronRight, Flame, Pencil, Plus, Trash2 } from "lucide-react";
 import type { Item, Kpi as KpiT, KpiDirection, KpiEntry, Objective } from "../lib/types";
@@ -171,6 +172,7 @@ export default function Kpi() {
           <p className="page-sub">Isi angka setiap hari. Tekan Enter atau pindah kolom untuk menyimpan.</p>
         </div>
         <div className="btn-row">
+          <WeeklyExport />
           <LayoutMenu layout={kl} title="Atur tampilan KPI">
             <span className="lay-opt-label">Kolom</span>
             <LayoutCheck label="Target" checked={colTarget} onChange={(v) => kl.setOpt("target", v)} />

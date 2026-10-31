@@ -29,7 +29,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Test frontend
-        run: npm test
+        run: npm test -- --maxWorkers=4
+      - name: Test project permissions against PocketBase
+        shell: pwsh
+        run: |
+          $archive = Join-Path $env:RUNNER_TEMP 'pocketbase.zip'
+          $binaryDir = Join-Path $env:RUNNER_TEMP 'pocketbase-test'
+          Invoke-WebRequest 'https://github.com/pocketbase/pocketbase/releases/download/v0.40.6/pocketbase_0.40.6_windows_amd64.zip' -OutFile $archive
+          if ((Get-FileHash $archive -Algorithm SHA256).Hash -ne '33A2A1D255CADDED77346FC7F5DE37DCA21BA4BAD0D9CAE0235A50B3B703D6D9') { throw 'PocketBase checksum mismatch' }
+          Expand-Archive $archive -DestinationPath $binaryDir
+          $env:PB_TEST_BIN = Join-Path $binaryDir 'pocketbase.exe'
+          node server/run-access-test.mjs
       - name: Build frontend
         run: npm run build
       - name: Test Windows backend

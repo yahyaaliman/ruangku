@@ -16,6 +16,9 @@ export const roleLevel = (r: Role | undefined) => ROLES.find((x) => x.id === r)?
 export const roleLabel = (r: Role | undefined) => ROLES.find((x) => x.id === r)?.label ?? "—";
 
 export interface Member {
+  projectAccess?: "all" | "selected";
+  projectIds?: string[];
+  projectRecordIds?: string[];
   name: string;
   email: string;
   role: Role;

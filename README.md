@@ -1,5 +1,7 @@
 # Ruangku
 
+**Pengembangan berikutnya:** aksi toast Windows, updater bertanda tangan, Google Tasks/Outlook, izin proyek anggota, laporan PDF/Excel, pratinjau file, dan enkripsi snapshot. Lihat [panduan penyiapan dan batasan](INTEGRASI-DAN-KEAMANAN.md) sebelum mengaktifkan integrasi atau memperbarui server tim.
+
 **Baru di versi 0.5: ikon ruang, tab kalender dasbor, dan akun Google**
 
 - Klik ikon di sidebar atau tombol ikon pada formulir proyek untuk memilih, mencari, mengacak, atau menghapus emoji. Tombol ikon kini dapat digunakan lewat keyboard.

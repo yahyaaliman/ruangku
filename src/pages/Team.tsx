@@ -1,3 +1,6 @@
+import type { Project } from "../lib/tasks";
+import { lineage } from "../lib/projects";
+import { q } from "../team/pb";
 // Tim & bot: anggota dan peran per email, server tim (PocketBase), dan kanal bot.
 import { useEffect, useMemo, useState } from "react";
 import { Bot, Check, Cloud, Copy, Link2, LogOut, Mail, MessageCircle, Pencil, Plus, RefreshCw, Send, Server, ShieldCheck, Sunrise, Trash2, UserPlus, Users } from "lucide-react";
@@ -54,6 +57,12 @@ function MemberForm({ initial, workspaces, myRole, onSave, onClose }: { initial?
   const [role, setRole] = useState<Role>(initial?.role ?? "kontributor");
   const [wa, setWa] = useState(initial?.wa ?? "");
   const [tg, setTg] = useState(initial?.telegram ?? "");
+  const projectRecords = useRecords<Project>("project");
+  const [projectAccess, setProjectAccess] = useState<"all" | "selected">(initial?.projectAccess ?? "all");
+  const [projectIds, setProjectIds] = useState<string[]>(initial?.projectIds ?? []);
+  const [grantsReady, setGrantsReady] = useState(!initial?.projectRecordIds?.length);
+  const [grantsError, setGrantsError] = useState("");
+  useEffect(() => { if (initial?.remoteId && initial.projectRecordIds?.length) loadTeam().then(async team => { if (!team) throw new Error("Hubungkan server tim untuk membaca izin proyek."); const rows = await new Pb(team.serverUrl, team.token).all<{ id: string; rid: string }>("records", { filter: `kind = 'project' && workspace = ${q(initial.workspaceId!.slice(3))}`, fields: "id,rid" }); setProjectIds(rows.filter(r => initial.projectRecordIds!.includes(r.id)).map(r => r.rid)); setGrantsReady(true); }).catch(e => setGrantsError(errorText(e))); }, [initial?.remoteId]);
   const [via, setVia] = useState<Channel[]>(initial?.notifyVia ?? ["email"]);
   const [ws, setWs] = useState(initial?.workspaceId ?? "");
   const [busy, setBusy] = useState(false);
@@ -68,11 +77,11 @@ function MemberForm({ initial, workspaces, myRole, onSave, onClose }: { initial?
           <button className="btn" onClick={onClose}>Batal</button>
           <button
             className="btn btn-primary"
-            disabled={!valid || busy}
+            disabled={!valid || busy || !grantsReady}
             onClick={async () => {
               setBusy(true);
               try {
-                await onSave({ ...(initial ? strip(initial) : { color: COLORS[Math.floor(Math.random() * COLORS.length)] }), name: name.trim(), email: email.trim().toLowerCase(), role, wa: wa.trim() || undefined, telegram: tg.replace(/^@/, "").trim() || undefined, notifyVia: via, workspaceId: ws || undefined } as Member, workspaces.find((w) => w.id === ws)?.remoteId);
+                await onSave({ ...(initial ? strip(initial) : { color: COLORS[Math.floor(Math.random() * COLORS.length)] }), name: name.trim(), email: email.trim().toLowerCase(), role, wa: wa.trim() || undefined, telegram: tg.replace(/^@/, "").trim() || undefined, notifyVia: via, projectAccess, projectIds, workspaceId: ws || undefined } as Member, workspaces.find((w) => w.id === ws)?.remoteId);
                 onClose();
               } catch (e) {
                 toast(errorText(e), "error");
@@ -87,6 +96,7 @@ function MemberForm({ initial, workspaces, myRole, onSave, onClose }: { initial?
       }
     >
       <div className="form">
+        {!grantsReady && <p role="alert">{grantsError || "Memuat izin proyek…"}</p>}
         <div className="form-row">
           <Field label="Nama"><input value={name} onChange={(e) => setName(e.target.value)} placeholder="Rina Wulandari" /></Field>
           <Field label="Email" hint="Dipakai untuk login server tim & notifikasi email."><input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="rina@kantor.id" disabled={!!initial?.workspaceId} /></Field>
@@ -105,6 +115,7 @@ function MemberForm({ initial, workspaces, myRole, onSave, onClose }: { initial?
           <Field label="Nomor WhatsApp" hint={wa ? `Dikirim ke +${normalizePhone(wa)}` : "Contoh: 0812-3456-7890"}><input value={wa} onChange={(e) => setWa(e.target.value)} /></Field>
           <Field label="Username Telegram" hint="Tanpa @. Tautkan lewat tombol Telegram di daftar anggota."><input value={tg} onChange={(e) => setTg(e.target.value)} /></Field>
         </div>
+        {ws && !["pemilik", "admin"].includes(role) && <div className="field"><span className="field-label">Akses proyek</span><select value={projectAccess} onChange={e => setProjectAccess(e.target.value as "all" | "selected")}><option value="all">Semua proyek dalam ruang kerja</option><option value="selected">Hanya proyek yang dipilih</option></select>{projectAccess === "selected" && <><p className="field-hint">Pilih setiap proyek dan subproyek yang boleh diakses. Tanpa pilihan berarti tidak ada akses proyek.</p>{projectRecords.items.filter(p => lineage(projectRecords.items, p.id).some(a => a.workspaceId === ws)).map(p => <label key={p.id}><input type="checkbox" checked={projectIds.includes(p.id)} onChange={e => setProjectIds(ids => e.target.checked ? [...ids, p.id] : ids.filter(id => id !== p.id))} /> {p.name}</label>)}</>}</div>}
         <Field label="Kirim penugasan lewat">
           <div className="chips">
             {(["wa", "telegram", "email"] as Channel[]).map((c) => (
@@ -146,7 +157,9 @@ function MembersTab() {
     if (m.workspaceId && team) {
       const pb = new Pb(team.serverUrl, team.token);
       const prev = id ? members.items.find((x) => x.id === id) : undefined;
-      const body = { name: m.name, role: m.role, wa: m.wa ?? "", telegram: m.telegram ?? "", notifyVia: m.notifyVia ?? [] };
+      const available = await pb.all<{id:string;rid:string}>("records", { filter: `workspace = ${q(wsRemote || m.workspaceId.slice(3))} && kind = 'project'`, fields: "id,rid" });
+      const projects = available.filter(p => m.projectIds?.includes(p.rid)).map(p => p.id);
+      const body = { projectAccess: m.projectAccess ?? "all", projects, name: m.name, role: m.role, wa: m.wa ?? "", telegram: m.telegram ?? "", notifyVia: m.notifyVia ?? [] };
       if (prev?.remoteId) await pb.update("members", prev.remoteId, body);
       else await pb.create("members", { ...body, email: m.email, workspace: wsRemote });
       await syncTeam({ ...team });

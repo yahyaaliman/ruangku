@@ -1,3 +1,4 @@
+import { useExternalSyncLoop } from "./integrations/useExternal";
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { Palette, ZoomIn, ZoomOut, BookOpen, Bot, CalendarClock, CalendarDays, CheckSquare, ClipboardCheck, Coffee, Compass, DatabaseBackup, FolderKanban, FolderOpen, FolderPlus, Gauge, GraduationCap, Handshake, LayoutPanelLeft, MoonStar, NotebookPen, PanelLeft, Settings as Cog, Square, Wallet, Sun, Target, RefreshCw, Users, X } from "lucide-react";
 import { api, errorText, isDesktop, onEvent } from "./lib/api";
@@ -285,6 +286,7 @@ function Shell() {
   const demo = useDemoBootstrap();
   useTeamSync();
   useGoogleSyncLoop();
+  useExternalSyncLoop();
   useAccountSyncLoop();
   useAgendaSync();
   useMcpServer();

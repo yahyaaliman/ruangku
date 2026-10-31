@@ -1,3 +1,12 @@
+import { memberCanAccess } from "./projectAccess";
+import { syncTeam } from "./teamSync";
+async function refreshProjectPermissions() {
+  const members = await load<Member>("member");
+  if (!members.some(m => m.workspaceId)) return;
+  const team = await loadTeam();
+  if (!team) throw new Error("Hubungkan server tim sebelum bot mengakses data ruang kerja.");
+  await syncTeam(team); // Fail closed when the server is unavailable.
+}
 // Bot Ruangku: Telegram, email (Gmail), dan WhatsApp Cloud API.
 // Berjalan di jendela utama pada satu perangkat "bot host". Tugas:
 //  - kirim pesan penugasan dari antrean (outbox) ke kanal anggota,
@@ -164,6 +173,7 @@ export function meetingMessage(mt: Item<Meeting>, kind: "undangan" | "hasil" | "
 export async function processOutbox(cfg: BotConfig) {
   const box = (await load<OutboxItem>("outbox")).filter((o) => o.status === "pending").sort((a, b) => a.at - b.at).slice(0, 10);
   if (!box.length) return;
+  await refreshProjectPermissions();
   const [members, tasks, projects, comments, notes, meetings] = await Promise.all([load<Member>("member"), load<Task>("task"), projectsAll(), load<Comment>("comment"), load<Note>("note"), load<Meeting>(MEETING_KIND)]);
   for (const o of box) {
     const m = members.find((x) => x.id === o.memberId);
@@ -173,7 +183,8 @@ export async function processOutbox(cfg: BotConfig) {
     const mt = o.meetingId ? meetings.find((x) => x.id === o.meetingId) : undefined;
     const done = (status: OutboxItem["status"], extra: Partial<OutboxItem> = {}) => api.save(o.id, "outbox", { ...strip(o), status, ...extra });
     const valid = o.type === "mention" ? !!c && (!!t || !!n) : o.type === "meeting" ? !!mt : !!t;
-    if (!m || !valid || m.isMe) {
+    const targetProject = t?.projectId || n?.projectId || mt?.projectId || o.projectId;
+    if (!m || !valid || m.isMe || !memberCanAccess(m, targetProject, projects)) {
       await done("skipped");
       continue;
     }
@@ -234,6 +245,7 @@ const aiMemory = new Map<string, Msg[]>();
 
 /** Proses satu pesan masuk dan kembalikan balasan (null = tidak perlu balas). */
 export async function handleIncoming(inc: Incoming): Promise<string | null> {
+  await refreshProjectPermissions();
   const members = await load<Member>("member");
   const cmd = parseCommand(inc.text, inc.ctxCode);
   const who = inc.name || inc.email || inc.phone || inc.telegramUser || String(inc.telegramChatId ?? "?");
@@ -253,7 +265,9 @@ export async function handleIncoming(inc: Incoming): Promise<string | null> {
   }
   const role = member.role;
   const today = dateKey();
-  const [tasks, projects] = await Promise.all([load<Task>("task"), projectsAll()]);
+  const [allTasks, allProjects] = await Promise.all([load<Task>("task"), projectsAll()]);
+  const projects = allProjects.filter(p => memberCanAccess(member, p.id, allProjects));
+  const tasks = allTasks.filter(t => memberCanAccess(member, t.projectId, allProjects));
   const mine = tasks.filter((t) => !isTaskDone(t, projects) && !t.parentId && ((t.assignees ?? []).includes(member.id) || (member.isMe && !t.assignees?.length && t.due && t.due <= today)));
   const line = (t: Item<Task>) => `[${shortCode(t.id)}] ${t.title}${t.due ? ` · ${t.due === today ? "hari ini" : t.due < today ? `telat (${t.due})` : t.due}` : ""}${t.projectId !== "inbox" ? ` · ${projectPath(projects, t.projectId).split(" › ").pop()}` : ""}`;
 
@@ -269,6 +283,7 @@ export async function handleIncoming(inc: Incoming): Promise<string | null> {
       if (!can(role, "create")) return `Peran Anda (${role}) tidak boleh menambah tugas.`;
       const p = parseQuick(cmd.text, new Date(), projects.map((x) => x.name));
       const proj = p.project ? projects.find((x) => x.name.toLowerCase().startsWith(p.project!.toLowerCase())) : undefined;
+      if (member.workspaceId && !proj) return "Pilih proyek yang diizinkan dengan #nama-proyek.";
       if (!p.title) return "Judul tugas kosong. Contoh: tambah Kirim laporan besok jam 10";
       const t = await createTask({ title: p.title, projectId: proj?.id, due: p.due, dueTime: p.dueTime, tags: p.tags, priority: p.priority, estimate: p.estimate, recurrence: p.recurrence, assignees: [member.id], createdBy: member.id } as Partial<Task> & { title: string }, member.id);
       return `✅ Tugas dibuat [${shortCode(t.id)}] ${t.title}${t.due ? `, tenggat ${t.due}` : ""}${proj ? ` di ${proj.name}` : ""}.`;
@@ -291,7 +306,7 @@ export async function handleIncoming(inc: Incoming): Promise<string | null> {
       return `⏩ Tenggat "${t.title}" diubah ke ${due}.`;
     }
     case "rapat":
-      return meetingsListText(await load<Meeting>(MEETING_KIND), member.id, !!member.isMe, today);
+      return meetingsListText((await load<Meeting>(MEETING_KIND)).filter(m => memberCanAccess(member, m.projectId, allProjects)), member.id, !!member.isMe, today);
     case "kuliah": {
       if (!member.isMe) return "Jadwal kuliah hanya tersedia untuk pemilik Ruangku.";
       const [blocks, courses] = await Promise.all([load<TimeBlock>("timeblock"), load<Course>(COURSE_KIND)]);
@@ -327,12 +342,14 @@ export async function handleIncoming(inc: Incoming): Promise<string | null> {
       return `${cmd.type === "keluar" ? "💸 Pengeluaran" : "💵 Pemasukan"} Rp${p.amount.toLocaleString("id-ID")} dicatat · ${p.category}${p.description ? ` · ${p.description}` : ""}${acc ? ` · ${acc.name}` : ""}.`;
     }
     case "catat": {
+      if (member.workspaceId) return "Buat catatan pada proyek yang diizinkan melalui aplikasi Ruangku.";
       if (!can(role, "create")) return `Peran Anda (${role}) tidak boleh menambah catatan.`;
       const id = newId();
       await api.save(id, "note", { title: cmd.text.slice(0, 60), body: `${cmd.text}\n\n— dari ${member.name} lewat ${inc.channel}`, tags: ["bot"], date: today } as Note);
       return "📝 Catatan tersimpan.";
     }
     case "ai": {
+      if (member.workspaceId) { aiMemory.delete(`${inc.channel}:${member.id}`); return "Untuk anggota ruang kerja, gunakan perintah tugas, hari ini, tambah, selesai, tunda, atau rapat. Asisten bebas tersedia melalui aplikasi."; }
       const ai = await loadAiConfig();
       if (!ai.botAi || !aiReady(ai)) return `Perintah tidak dikenal.\n\n${HELP_TEXT}`;
       const key = `${inc.channel}:${member.id}`;
@@ -417,6 +434,7 @@ async function pollWaInbox(c: BotConfig) {
 
 /** Susun rangkuman pagi untuk satu anggota pada tanggal tertentu. */
 export async function digestFor(member: Item<Member>, date = dateKey()): Promise<string> {
+  if (member.workspaceId) { await refreshProjectPermissions(); const fresh = (await load<Member>("member")).find(m => m.id === member.id); if (!fresh) throw new Error("Anggota tidak lagi memiliki akses."); member = fresh; }
   const [tasks, projects, blocks, reminders, ibRows, subs] = await Promise.all([load<Task>("task"), projectsAll(), load<TimeBlock>("timeblock"), load<Reminder>("reminder"), api.list("ibadahconfig"), load<CalSub>("calsub")]);
   const ibRaw = ibRows.find((r) => r.id === IBADAH_CONFIG_ID);
   const ib = normalizeConfig(ibRaw ? dataOf(ibRaw.data) : null);
@@ -425,12 +443,12 @@ export async function digestFor(member: Item<Member>, date = dateKey()): Promise
     const events = s.source === "builtin" ? builtinHolidays() : ((await readCache(s.id))?.events ?? []);
     external.push({ id: s.id, name: s.name, color: s.color, holiday: s.holiday, events });
   }
-  const events = eventsInRange({ blocks: [], tasks: [], reminders: [], projects, external }, date, date, { layers: new Set(["luar", "milestone"] as const), match: () => true });
+  const events = eventsInRange({ blocks: [], tasks: [], reminders: [], projects: projects.filter(p => memberCanAccess(member, p.id, projects)), external: member.workspaceId ? external.filter(e => e.holiday) : external }, date, date, { layers: new Set(["luar", "milestone"] as const), match: () => true });
   const bands = ib.setup ? prayerBands(timesForDate(date, { lat: ib.lat, lng: ib.lng, tz: ib.tz, elevation: ib.elevation }, ib.offsets), parseDateKey(date).getDay(), await loadGuard()) : [];
   const meetings = await load<Meeting>(MEETING_KIND);
   const meetingAttendees = Object.fromEntries(meetings.filter((m) => m.date === date).map((m) => [m.id, m.attendees]));
   const bills = member.isMe ? dueRecurring((await load<Recurring>(RECURRING_KIND)).filter((r) => !r.auto), date).map((d) => ({ title: d.rec.title, amount: d.rec.amount, type: d.rec.type, date: d.date })) : [];
-  return buildDigest({ member, date, hijri: ib.setup ? hijriLabel(date, ib.hijriOffset) : undefined, tasks, projects, blocks, reminders, events, bands, meetingAttendees, bills });
+  return buildDigest({ member, date, hijri: ib.setup ? hijriLabel(date, ib.hijriOffset) : undefined, tasks: tasks.filter(t => memberCanAccess(member, t.projectId, projects)), projects, blocks: blocks.filter(b => memberCanAccess(member, b.projectId || tasks.find(t => t.id === b.taskId)?.projectId, projects)), reminders: reminders.filter(r => memberCanAccess(member, r.projectId, projects)), events, bands, meetingAttendees, bills });
 }
 
 /** Kirim rangkuman pagi ke penerima (sekali sehari). `force` = kirim sekarang (uji coba). */

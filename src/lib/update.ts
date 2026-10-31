@@ -1,5 +1,5 @@
 // Cek pembaruan dari halaman Releases GitHub (repo diatur pengguna, mis. "nama/ruangku").
-import { api, httpJson } from "./api";
+import { api, httpJson, isDesktop } from "./api";
 
 export interface Release {
   version: string;
@@ -39,6 +39,14 @@ export const UPDATE_CHECK_KEY = "update_last_check";
 
 /** Cek sekali sehari (dipanggil saat aplikasi dibuka). Mengembalikan rilis bila lebih baru. */
 export async function dailyUpdateCheck(current: string): Promise<Release | null> {
+  if (isDesktop) {
+    const lastSigned = Number(await api.getSetting("signed_update_last_check") || 0);
+    if (Date.now() - lastSigned >= 20 * 3600 * 1000) {
+      const signed = await api.updaterCheck();
+      await api.setSetting("signed_update_last_check", String(Date.now()));
+      if (signed.configured) return signed.version ? { version: signed.version, name: signed.version, notes: signed.notes || "", publishedAt: "", url: "https://github.com/yahyaaliman/ruangku/releases" } : null;
+    }
+  }
   const repo = (await api.getSetting(UPDATE_REPO_KEY)) ?? "";
   if (!validRepo(repo)) return null;
   const last = Number((await api.getSetting(UPDATE_CHECK_KEY)) ?? 0);
