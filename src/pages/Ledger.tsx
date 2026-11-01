@@ -22,6 +22,7 @@ import { CashflowChart, CategoryBars, compactRp } from "../finance/FinanceCharts
 import "./ledger.css";
 import { groupRuns, usePageLayout, type SectionDef } from "../lib/pageLayout";
 import { LayoutCheck, LayoutMenu, LayoutSeg } from "../components/LayoutMenu";
+import { useNewShortcut } from "../lib/shortcuts";
 
 const monthRange = (ym: string) => {
   const [y, m] = ym.split("-").map(Number);
@@ -179,6 +180,12 @@ export default function Ledger() {
   const [fType, setFType] = useState<"" | TxType>("");
   const [fCat, setFCat] = useState("");
   const [form, setForm] = useState<{ type: TxType; initial?: E } | null>(null);
+  // Ctrl+N: ke kolom catat cepat; bila disembunyikan, buka form pengeluaran.
+  useNewShortcut(() => {
+    const q = document.querySelector<HTMLInputElement>('input[aria-label="Catat cepat"]');
+    if (q) q.focus();
+    else setForm({ type: "keluar" });
+  });
   const [accForm, setAccForm] = useState<{ initial?: Item<Account> } | null>(null);
   const [budForm, setBudForm] = useState<{ initial?: Item<Budget>; category?: string } | null>(null);
   const [recForm, setRecForm] = useState<{ initial?: Item<Recurring> } | null>(null);

@@ -1,4 +1,5 @@
 // Halaman Proyek: timeline bertingkat dan daftar proyek & subproyek.
+import { useNewShortcut } from "../lib/shortcuts";
 import { useMemo, useState } from "react";
 import { Archive, ArchiveRestore, CalendarRange, Crosshair, FolderOpen, LayoutGrid, Pencil, Plus, Trash2, Users } from "lucide-react";
 import type { Page } from "../App";
@@ -34,6 +35,7 @@ export default function Projects({ go }: { go: (p: Page) => void }) {
   const toast = useToast();
   const [tab, setTab] = useState<Tab>(() => (localStorage.getItem("ruangku-projects-tab") as Tab) || "timeline");
   const [form, setForm] = useState<{ initial?: Item<Project>; parentId?: string } | null>(null);
+  useNewShortcut(() => setForm({ parentId: scope.current?.id }));
   const [del, setDel] = useState<Item<Project> | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const setTabP = (x: Tab) => {

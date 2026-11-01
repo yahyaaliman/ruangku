@@ -1,4 +1,5 @@
 // Halaman Kuliah: jadwal mingguan, mata kuliah (pertemuan & presensi, tugas, ujian, nilai), IPS/IPK.
+import { useNewShortcut } from "../lib/shortcuts";
 // Pertemuan dan ujian dibuat otomatis sebagai blok jadwal (kind "kuliah") sehingga tampil di semua fitur.
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { CalendarClock, Check, ExternalLink, FileText, GraduationCap, MapPin, Plus, Settings2, Trash2, Video, X } from "lucide-react";
@@ -49,6 +50,7 @@ export default function Courses({ go }: { go: (p: Page) => void }) {
   const hiddenTabs = cl.opt<string[]>("hideTabs", []);
   const [open, setOpen] = useState<string | null>(null);
   const [form, setForm] = useState<null | { initial?: Item<Course> }>(null);
+  useNewShortcut(() => setForm({}));
   const scale = scaleById(prefs.scale);
   const today = dateKey();
   const nowMin = new Date().getHours() * 60 + new Date().getMinutes();

@@ -154,7 +154,9 @@ export default function CommandPalette({
           group: "Kalender",
           icon: <CalendarDays size={15} />,
           label: `Buka kalender: ${dayLong(parseDateKey(d).getTime())}`,
-          score: 40,
+          // Hanya tanggal ("besok", "5 nov") → lompat ke kalender jadi pilihan utama.
+          // Ada kata lain ("kirim laporan besok") → kemungkinan besar tugas, jadi di bawah "Tugas baru".
+          score: parsed.title.trim() ? 0.8 : 40,
           run: () => {
             requestOpen("date", d);
             go("calendar");

@@ -160,3 +160,13 @@ body.pane-dragging, body.pane-dragging * { cursor: col-resize !important; user-s
   .kpi-table { overflow-x: auto; }
   .kpi-table .kpi-row { min-width: 640px; }
 }
+
+/* Area yang diseret (kalender, jadwal, kanban, pohon sidebar): jangan ikut memblok teks
+   saat mouse ditarik. Kolom isian tetap bisa dipilih seperti biasa. */
+.page-cal .cal-body, .tg-host, .tk-board, .sb-tree, .rm-frame { -webkit-user-select: none; user-select: none; }
+.page-cal .cal-body :is(input, textarea, [contenteditable="true"]), .tg-host :is(input, textarea), .tk-board :is(input, textarea) { -webkit-user-select: text; user-select: text; }
+
+/* Kepala halaman: judul & keterangan boleh menyempit supaya tombol tetap di kanan;
+   baru turun ke baris berikutnya bila jendela memang sempit. */
+.page-head > :first-child { flex: 1 1 320px; min-width: 0; }
+.page-head > .btn-row, .page-head > .seg, .page-head > .btn { flex: 0 0 auto; }

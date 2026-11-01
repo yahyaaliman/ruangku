@@ -1,6 +1,7 @@
 import { WeeklyExport } from "../reports/WeeklyExport";
 import { useMemo, useState } from "react";
 import { useOpenRequest } from "../lib/deeplink";
+import { useNewShortcut } from "../lib/shortcuts";
 import { flashElement } from "../components/CommandPalette";
 import { ChevronLeft, ChevronRight, MoreHorizontal, Pencil, Plus, Trash2, TrendingUp } from "lucide-react";
 import type { Item, KeyResult, Objective } from "../lib/types";
@@ -166,6 +167,7 @@ export default function Okr() {
   const krs = useRecords<KeyResult>("keyresult");
   const [period, setPeriod] = useState(quarterOf());
   const [editObj, setEditObj] = useState<Item<Objective> | "new" | null>(null);
+  useNewShortcut(() => setEditObj("new"));
   const [editKr, setEditKr] = useState<{ objectiveId: string; kr?: Item<KeyResult> } | null>(null);
   const [checkIn, setCheckIn] = useState<Item<KeyResult> | null>(null);
   const [del, setDel] = useState<{ kind: "obj" | "kr"; id: string; title: string } | null>(null);

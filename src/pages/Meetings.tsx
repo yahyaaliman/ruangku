@@ -1,4 +1,5 @@
 // Halaman Rapat: daftar rapat mendatang & riwayat, detail rapat (peserta, tempat/tautan, agenda,
+import { useNewShortcut } from "../lib/shortcuts";
 // notulen, keputusan, action item → tugas), rapat berulang, dan kirim undangan/hasil lewat bot.
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -49,6 +50,7 @@ export default function Meetings({ go }: { go: (p: Page) => void }) {
   const [q, setQ] = useState("");
   const [sel, setSel] = useState<string | null>(null);
   const [form, setForm] = useState<null | { seriesId?: string; date?: string }>(null);
+  useNewShortcut(() => setForm({}));
   const [listW, setListW, resetListW] = usePaneWidth("meetings-list", 360, 260, 680);
   const today = dateKey();
   const nowMin = new Date().getHours() * 60 + new Date().getMinutes();

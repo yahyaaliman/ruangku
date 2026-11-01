@@ -12,6 +12,7 @@ import BlockEditor, { insertMarkdown } from "../notes/BlockEditor";
 import { useScope } from "../lib/scope";
 import { ProjectChip, ProjectSelect } from "../projects/ProjectSwitcher";
 import { useOpenRequest } from "../lib/deeplink";
+import { useNewShortcut } from "../lib/shortcuts";
 import Comments from "../collab/Comments";
 import BibImport from "../notes/BibImport";
 import { useAccess } from "../lib/access";
@@ -175,6 +176,7 @@ export default function Notes() {
   };
 
   const set = (patch: Partial<Note>) => note && save({ ...strip(note), ...patch }, note.id);
+  useNewShortcut(async () => setCurrent(await create()), !loading);
 
   const moveNote = (dragId: string, targetId: string | null) => {
     const n = items.find((x) => x.id === dragId);
@@ -504,7 +506,29 @@ function CoverPicker({ at, onPick, onClose, onError }: { at: MenuAt; onPick: (co
 
 function TitleInput({ value, onCommit, autoFocus }: { value: string; onCommit: (v: string) => void; autoFocus?: boolean }) {
   const [v, setV] = useState(value);
-  useEffect(() => setV(value), [value]);
+  const sent = useRef(value);
+  const latest = useRef({ v, onCommit });
+  latest.current = { v, onCommit };
+  const commit = (next: string) => {
+    if (next === sent.current) return;
+    sent.current = next;
+    latest.current.onCommit(next);
+  };
+  // Perubahan dari luar (mis. ganti nama dari sidebar). Gema simpanan sendiri diabaikan
+  // supaya teks yang sedang diketik tidak tertimpa nilai lama.
+  useEffect(() => {
+    if (value !== sent.current) {
+      sent.current = value;
+      setV(value);
+    }
+  }, [value]);
+  // Simpan otomatis 600 ms setelah berhenti mengetik, dan saat berpindah halaman/menutup.
+  useEffect(() => {
+    if (v === sent.current) return;
+    const t = window.setTimeout(() => commit(v), 600);
+    return () => window.clearTimeout(t);
+  }, [v]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => commit(latest.current.v), []); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <textarea
       autoFocus={autoFocus}
@@ -514,7 +538,7 @@ function TitleInput({ value, onCommit, autoFocus }: { value: string; onCommit: (
       placeholder="Tanpa judul"
       aria-label="Judul halaman"
       onChange={(e) => setV(e.target.value)}
-      onBlur={() => v !== value && onCommit(v)}
+      onBlur={() => commit(v)}
       onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), (e.target as HTMLTextAreaElement).blur(), document.querySelector<HTMLElement>(".be")?.focus())}
     />
   );
@@ -523,16 +547,21 @@ function TitleInput({ value, onCommit, autoFocus }: { value: string; onCommit: (
 function TagInput({ value, onCommit }: { value: string[]; onCommit: (v: string[]) => void }) {
   const [v, setV] = useState(value.join(", "));
   useEffect(() => setV(value.join(", ")), [value]);
+  const commit = (text: string) => {
+    const t = [...new Set(text.split(",").map((x) => x.trim().toLowerCase().replace(/^#/, "")).filter(Boolean))];
+    if (t.join() !== latest.current.value.join()) latest.current.onCommit(t);
+  };
+  const latest = useRef({ v, value, onCommit });
+  latest.current = { v, value, onCommit };
+  // Tag yang belum di-blur tetap tersimpan saat berpindah halaman.
+  useEffect(() => () => commit(latest.current.v), []); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <input
       className="editor-tags"
       value={v}
       placeholder="Tag, pisahkan dengan koma"
       onChange={(e) => setV(e.target.value)}
-      onBlur={() => {
-        const t = [...new Set(v.split(",").map((x) => x.trim().toLowerCase().replace(/^#/, "")).filter(Boolean))];
-        if (t.join() !== value.join()) onCommit(t);
-      }}
+      onBlur={() => commit(v)}
     />
   );
 }

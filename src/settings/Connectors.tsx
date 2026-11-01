@@ -79,7 +79,7 @@ export function McpPanel() {
   }, [loaded, cfg, save]);
   const url = `http://127.0.0.1:${cfg.port}/mcp`;
   const tok = cfg.token || "(nyalakan server untuk membuat token)";
-  const masked = cfg.token ? `${cfg.token.slice(0, 6)}${"•".repeat(18)}${cfg.token.slice(-4)}` : "—";
+  const masked = cfg.token ? `${cfg.token.slice(0, 6)}${"•".repeat(18)}${cfg.token.slice(-4)}` : "Dibuat otomatis saat server diaktifkan";
   const desktopJson = `{\n  "mcpServers": {\n    "ruangku": {\n      "command": ${jsonStr(exe)},\n      "args": ["--mcp"]\n    }\n  }\n}`;
   const running = !!st?.running;
 
@@ -118,7 +118,7 @@ export function McpPanel() {
           <div className="field">
             <span className="field-label">Token</span>
             <div className="cn-token">
-              <code>{show ? cfg.token || "—" : masked}</code>
+              <code className={cfg.token ? "" : "muted"}>{show && cfg.token ? cfg.token : masked}</code>
               <button className="icon-btn sm" onClick={() => setShow(!show)} aria-label={show ? "Sembunyikan token" : "Tampilkan token"}>
                 {show ? <EyeOff size={14} /> : <Eye size={14} />}
               </button>

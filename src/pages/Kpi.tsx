@@ -1,4 +1,5 @@
 import { WeeklyExport } from "../reports/WeeklyExport";
+import { useNewShortcut } from "../lib/shortcuts";
 import { useEffect, useMemo, useState } from "react";
 import { BarChart3, ChevronLeft, ChevronRight, Flame, Pencil, Plus, Trash2 } from "lucide-react";
 import type { Item, Kpi as KpiT, KpiDirection, KpiEntry, Objective } from "../lib/types";
@@ -131,6 +132,7 @@ export default function Kpi() {
   const objectives = useRecords<Objective>("objective");
   const [date, setDate] = useState(dateKey());
   const [edit, setEdit] = useState<Item<KpiT> | "new" | null>(null);
+  useNewShortcut(() => setEdit("new"));
   const [history, setHistory] = useState<Item<KpiT> | null>(null);
   const [del, setDel] = useState<Item<KpiT> | null>(null);
 
