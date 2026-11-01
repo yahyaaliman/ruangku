@@ -80,33 +80,26 @@ Semua data disimpan lokal di `%APPDATA%\com.ruangku.app\ruangku.db` (SQLite).
 
 ---
 
-## Cara tercepat: installer dari GitHub (tanpa memasang Rust)
+## Memasang di Windows
 
-1. Buat repository baru di GitHub, lalu unggah isi folder ini (atau `git push`).
-2. Buka tab **Actions** → **Build Windows**. Workflow berjalan otomatis setiap push ke `main` (atau klik **Run workflow**). Uji frontend dan backend dijalankan dulu sebelum build.
-3. Setelah selesai (sekitar 10–15 menit), buka run tersebut dan unduh **Ruangku-Windows-installer** di bagian *Artifacts*.
-4. Jalankan `Ruangku_0.6.0_x64-setup.exe`. Installer dipasang untuk user saat ini, tanpa hak admin.
+Unduh **`Ruangku_<versi>_x64-setup.exe`** dari halaman [Releases](https://github.com/yahyaaliman/ruangku/releases/latest), lalu jalankan. Installer berbahasa Indonesia, dipasang untuk pengguna saat ini tanpa hak admin, membuat pintasan Start Menu/desktop, dan bisa dicopot dari **Pengaturan → Aplikasi**. Cocokkan checksum dengan `SHA256SUMS.txt` sebelum menjalankan. Detail installer, cara memverifikasi, dan cara mengaktifkan tanda tangan kode ada di [INSTALLER-WINDOWS.md](INSTALLER-WINDOWS.md).
 
-### Rilis dan pembaruan otomatis
+### Membuat installer dari GitHub (tanpa memasang Rust)
 
-Push tag versi untuk menerbitkan installer sebagai **GitHub Release**:
+1. Push ke `main`. Workflow **Build Windows** menjalankan uji frontend dan backend, membuat installer `.exe` dan `.msi`, memindainya dengan Windows Defender, lalu membuat checksum SHA-256 dan attestation build.
+2. Setelah selesai (sekitar 15 menit), installer bisa diunduh dari bagian *Artifacts* di halaman run tersebut.
+3. Untuk rilis publik, naikkan versi lalu push tag:
 
 ```powershell
 git tag v0.6.0
-git push --tags
+git push origin v0.6.0
 ```
 
-Isi nama repo (`pemilik/ruangku`) di Ruangku → **Pengaturan → Pembaruan aplikasi**. Ruangku memeriksa rilis terbaru sekali sehari dan menampilkan catatan rilis serta tombol unduh installer. Naikkan versi di `package.json`, `src-tauri/tauri.conf.json`, dan `src-tauri/Cargo.toml` sebelum membuat tag.
+Installer, `.msi`, `SHA256SUMS.txt`, dan catatan rilis terbit di halaman Releases. Pembaruan di dalam aplikasi aktif bila kunci updater sudah diatur (lihat [INTEGRASI-DAN-KEAMANAN.md](INTEGRASI-DAN-KEAMANAN.md)).
 
 ### Tanda tangan kode (opsional)
 
-Tanpa tanda tangan, Windows SmartScreen memperingatkan saat installer dijalankan (klik **More info → Run anyway**). Bila Anda punya sertifikat code signing (.pfx):
-
-1. Ubah ke base64: `[Convert]::ToBase64String([IO.File]::ReadAllBytes("sertifikat.pfx")) | Set-Clipboard`
-2. Di GitHub: **Settings → Secrets and variables → Actions**, tambahkan `WINDOWS_CERT_PFX` (isi base64 tadi) dan `WINDOWS_CERT_PASSWORD`.
-3. Workflow otomatis menandatangani installer `.exe` dan `.msi` dengan `signtool` (SHA-256, timestamp DigiCert). Tanpa secret, langkah ini dilewati.
-
-Sertifikat OV biasa tetap perlu membangun reputasi SmartScreen dari jumlah unduhan; sertifikat EV langsung dipercaya.
+Tanpa tanda tangan Authenticode, SmartScreen menampilkan peringatan *Unknown publisher* (klik **More info → Run anyway** setelah checksum cocok). Workflow siap menandatangani `ruangku.exe`, uninstaller, `.exe`, dan `.msi` begitu secret `WINDOWS_SIGN_COMMAND` (alat cloud HSM) atau `WINDOWS_CERT_PFX` + `WINDOWS_CERT_PASSWORD` diisi. Pilihan sertifikat untuk pengembang di Indonesia dijelaskan di [INSTALLER-WINDOWS.md](INSTALLER-WINDOWS.md). Sejak 2024, sertifikat EV pun tetap perlu membangun reputasi SmartScreen.
 
 ## Build sendiri di Windows
 

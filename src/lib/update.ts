@@ -35,6 +35,9 @@ export async function latestRelease(repo: string): Promise<Release> {
 }
 
 export const UPDATE_REPO_KEY = "update_repo";
+/** Sumber rilis resmi. Dipakai bila pengguna belum mengatur repo; string kosong = cek dimatikan. */
+export const DEFAULT_UPDATE_REPO = "yahyaaliman/ruangku";
+export const updateRepo = (stored: string | null) => (stored === null ? DEFAULT_UPDATE_REPO : stored);
 export const UPDATE_CHECK_KEY = "update_last_check";
 
 /** Cek sekali sehari (dipanggil saat aplikasi dibuka). Mengembalikan rilis bila lebih baru. */
@@ -47,7 +50,7 @@ export async function dailyUpdateCheck(current: string): Promise<Release | null>
       if (signed.configured) return signed.version ? { version: signed.version, name: signed.version, notes: signed.notes || "", publishedAt: "", url: "https://github.com/yahyaaliman/ruangku/releases" } : null;
     }
   }
-  const repo = (await api.getSetting(UPDATE_REPO_KEY)) ?? "";
+  const repo = updateRepo(await api.getSetting(UPDATE_REPO_KEY));
   if (!validRepo(repo)) return null;
   const last = Number((await api.getSetting(UPDATE_CHECK_KEY)) ?? 0);
   if (Date.now() - last < 20 * 3600 * 1000) return null;

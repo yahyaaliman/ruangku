@@ -5,7 +5,7 @@ import { ArchiveRestore, Copy, Download, ExternalLink, FolderOpen, HardDriveDown
 import { api, BackupInfo, Diagnostics, errorText, isDesktop, onEvent, pickOpenPath, pickSavePath } from "../lib/api";
 import { dateKey, relativeAgo } from "../lib/date";
 import { Confirm, useToast } from "../components/ui";
-import { compareVersions, latestRelease, Release, UPDATE_REPO_KEY, validRepo } from "../lib/update";
+import { compareVersions, latestRelease, Release, UPDATE_REPO_KEY, updateRepo, validRepo } from "../lib/update";
 
 const fmtBytes = (n: number) => (n > 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
 
@@ -176,7 +176,7 @@ export function SecurityUpdateSettings() {
   useEffect(() => {
     api.secretStore().then(setStore).catch(() => {});
     api.diagnostics().then((d) => setVersion(d.version)).catch(() => {});
-    api.getSetting(UPDATE_REPO_KEY).then((r) => setRepo(r ?? ""));
+    api.getSetting(UPDATE_REPO_KEY).then((r) => setRepo(updateRepo(r)));
   }, []);
 
   const check = async () => {

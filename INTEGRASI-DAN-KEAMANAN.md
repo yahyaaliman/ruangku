@@ -21,7 +21,7 @@ Untuk pengelola rilis:
 5. Workflow Windows menandatangani installer NSIS final setelah langkah Authenticode opsional, lalu menerbitkan installer, `.sig`, dan `latest.json`. Signature juga mengikat nomor versi (`requireSignedVersion`). Jangan mengubah installer setelah ditandatangani.
 6. Distribusikan satu installer awal yang sudah memuat kunci publik. Build lama tanpa kunci publik tetap dapat menggunakan unduhan manual; build tersebut tidak otomatis memperoleh kepercayaan terhadap kunci baru.
 
-Endpoint aplikasi: `https://github.com/yahyaaliman/ruangku/releases/latest/download/latest.json`. Tanda tangan updater berbeda dari sertifikat Windows Authenticode. Tag release sengaja gagal jika pasangan kunci belum dikonfigurasi. Alur rilis dengan kunci produksi perlu diuji sebelum dipakai umum.
+Endpoint aplikasi: `https://github.com/yahyaaliman/ruangku/releases/latest/download/latest.json`. Tanda tangan updater berbeda dari sertifikat Windows Authenticode. Bila pasangan kunci belum dikonfigurasi, rilis tag tetap terbit (installer, `.msi`, dan `SHA256SUMS.txt`) tetapi tanpa `latest.json`, dan build tersebut tidak memuat kunci publik sehingga pembaruan di dalam aplikasi belum aktif. Alur rilis dengan kunci produksi perlu diuji sebelum dipakai umum.
 
 Referensi: [Tauri updater](https://v2.tauri.app/plugin/updater/) dan [Tauri signer CLI](https://tauri.app/reference/cli/).
 

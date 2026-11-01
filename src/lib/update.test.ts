@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compareVersions, validRepo } from "./update";
+import { compareVersions, DEFAULT_UPDATE_REPO, updateRepo, validRepo } from "./update";
 
 describe("pembaruan", () => {
   it("membandingkan versi", () => {
@@ -13,5 +13,15 @@ describe("pembaruan", () => {
     expect(validRepo("nama/ruangku")).toBe(true);
     expect(validRepo("https://github.com/nama/ruangku")).toBe(false);
     expect(validRepo("")).toBe(false);
+  });
+});
+
+describe("sumber rilis bawaan", () => {
+  it("belum diatur → repo resmi; dikosongkan → cek dimatikan; diisi → dipakai", () => {
+    expect(updateRepo(null)).toBe(DEFAULT_UPDATE_REPO);
+    expect(validRepo(updateRepo(null))).toBe(true);
+    expect(updateRepo("")).toBe("");
+    expect(validRepo(updateRepo(""))).toBe(false);
+    expect(updateRepo("orang/garpu")).toBe("orang/garpu");
   });
 });

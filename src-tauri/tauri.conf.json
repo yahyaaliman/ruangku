@@ -34,7 +34,7 @@
       "msi"
     ],
     "publisher": "Ruangku",
-    "shortDescription": "Jadwal, OKR, KPI, catatan, dan file dalam satu aplikasi",
+    "shortDescription": "Ruangku: jadwal, tugas, catatan, keuangan, OKR, dan KPI",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -44,15 +44,33 @@
     ],
     "windows": {
       "webviewInstallMode": {
-        "type": "downloadBootstrapper"
+        "type": "embedBootstrapper",
+        "silent": true
       },
+      "allowDowngrades": true,
       "nsis": {
         "installMode": "currentUser",
         "languages": [
-          "English"
-        ]
+          "Indonesian"
+        ],
+        "customLanguageFiles": {
+          "Indonesian": "nsis/Indonesian.nsh"
+        },
+        "displayLanguageSelector": false,
+        "installerIcon": "icons/icon.ico",
+        "headerImage": "nsis/header.bmp",
+        "sidebarImage": "nsis/sidebar.bmp",
+        "startMenuFolder": "Ruangku",
+        "compression": "lzma"
+      },
+      "wix": {
+        "language": "en-US"
       }
-    }
+    },
+    "copyright": "© 2026 Ruangku",
+    "category": "Productivity",
+    "homepage": "https://github.com/yahyaaliman/ruangku",
+    "longDescription": "Ruang kerja pribadi untuk Windows: proyek, tugas, kalender, jadwal harian, rapat, kuliah, keuangan, OKR, KPI, evaluasi, catatan, file, dan ibadah. Semua data tersimpan di komputer Anda."
   },
   "plugins": {
     "updater": {

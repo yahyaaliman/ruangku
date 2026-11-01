@@ -12,7 +12,7 @@ import { projectContextMarkdown } from "../ai/contextExport";
 import { GCAL_KEY, type GcalConfig } from "../calendar/gcal";
 import { loadTeam } from "../team/pb";
 import { loadBot } from "../team/bot";
-import { UPDATE_REPO_KEY } from "../lib/update";
+import { UPDATE_REPO_KEY, updateRepo } from "../lib/update";
 import { useScope } from "../lib/scope";
 import { dataOf, type KeyResult, type Note, type Objective } from "../lib/types";
 import { load } from "../lib/taskOps";
@@ -312,7 +312,7 @@ function useStatuses(): Statuses {
       const subs = (await api.list("calsub").catch(() => [])).map((r) => dataOf<{ source: string; enabled: boolean }>(r.data));
       const team = await loadTeam().catch(() => null);
       const bot = await loadBot().catch(() => null);
-      const repo = await api.getSetting(UPDATE_REPO_KEY).catch(() => null);
+      const repo = updateRepo(await api.getSetting(UPDATE_REPO_KEY).catch(() => null));
       setS({
         gcal,
         ics: subs.filter((x) => x.source === "ics" && x.enabled).length,
