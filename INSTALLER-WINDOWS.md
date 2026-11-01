@@ -40,7 +40,7 @@ Data aplikasi tersimpan di `%APPDATA%\com.ruangku.app` (database `ruangku.db` be
 
 ### Peringatan "Windows protected your PC"
 
-Selama installer belum bertanda tangan kode (Authenticode), SmartScreen menampilkan peringatan **Unknown publisher**. Bila checksum sudah cocok, klik **More info → Run anyway**. Peringatan ini tidak berarti ada virus: setiap installer juga dipindai Windows Defender saat build.
+Selama installer belum bertanda tangan kode (Authenticode), SmartScreen menampilkan peringatan **Unknown publisher**. Bila checksum sudah cocok, klik **More info → Run anyway**. Peringatan ini hanya berarti penerbitnya belum terverifikasi, bukan berarti ada virus. Hasil pemindaian antivirus (bila aktif) tercantum di catatan rilis.
 
 ## Untuk pengelola rilis
 
@@ -54,7 +54,7 @@ Selama installer belum bertanda tangan kode (Authenticode), SmartScreen menampil
 
 - Semua GitHub Action dikunci ke commit SHA, dan token workflow memakai hak minimum.
 - Uji frontend dan backend wajib lulus sebelum installer dibuat.
-- Installer dipindai Windows Defender di runner. Build gagal bila ada ancaman.
+- Installer dipindai Windows Defender bila layanan itu aktif di runner GitHub (biasanya dimatikan di sana), dan dipindai VirusTotal (70+ antivirus) bila secret `VIRUSTOTAL_API_KEY` diisi. Kunci API-nya gratis dari akun [VirusTotal](https://www.virustotal.com). Hasilnya tercantum di catatan rilis. Build gagal bila Defender menemukan ancaman.
 - Checksum SHA-256 dan attestation build provenance (untuk repo publik) diterbitkan.
 - Installer per pengguna, tanpa hak admin, dengan konten aplikasi yang dibatasi CSP.
 

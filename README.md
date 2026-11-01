@@ -86,7 +86,7 @@ Unduh **`Ruangku_<versi>_x64-setup.exe`** dari halaman [Releases](https://github
 
 ### Membuat installer dari GitHub (tanpa memasang Rust)
 
-1. Push ke `main`. Workflow **Build Windows** menjalankan uji frontend dan backend, membuat installer `.exe` dan `.msi`, memindainya dengan Windows Defender, lalu membuat checksum SHA-256 dan attestation build.
+1. Push ke `main`. Workflow **Build Windows** menjalankan uji frontend dan backend, membuat installer `.exe` dan `.msi`, lalu membuat checksum SHA-256 dan attestation build. Pemindaian Windows Defender dan VirusTotal ikut berjalan bila tersedia.
 2. Setelah selesai (sekitar 15 menit), installer bisa diunduh dari bagian *Artifacts* di halaman run tersebut.
 3. Untuk rilis publik, naikkan versi lalu push tag:
 

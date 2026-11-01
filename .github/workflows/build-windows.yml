@@ -8,8 +8,9 @@
 # - Semua action dikunci ke commit SHA (bukan tag yang bisa dipindah).
 # - Hak token minimum; hanya job ini yang boleh menulis rilis & attestation.
 # - Uji frontend & backend wajib lulus sebelum build.
-# - Installer dipindai Windows Defender, diberi checksum SHA-256, dan attestation
-#   build provenance (repo publik) yang bisa dicek: `gh attestation verify <file> -R yahyaaliman/ruangku`.
+# - Installer diberi checksum SHA-256 dan attestation build provenance (repo publik) yang bisa
+#   dicek: `gh attestation verify <file> -R yahyaaliman/ruangku`. Dipindai Windows Defender bila
+#   aktif di runner, dan VirusTotal bila secret VIRUSTOTAL_API_KEY (gratis) diatur.
 #
 # Tanda tangan kode Authenticode (opsional, menghilangkan peringatan "Unknown publisher"):
 # - WINDOWS_SIGN_COMMAND (secret): perintah penanda tangan dengan %1 untuk path file, mis.
@@ -124,17 +125,55 @@ jobs:
             Write-Host "Tanda tangan valid: $($f.Name)"
           }
 
-      - name: Pindai dengan Windows Defender
+      - name: Pindai dengan Windows Defender (bila aktif di runner)
         shell: pwsh
         run: |
+          # Di runner GitHub layanan Defender biasanya dimatikan (hr 0x800106ba). MpCmdRun memakai
+          # kode keluar 2 untuk ancaman MAUPUN galat, jadi hasil dibaca dari teks keluarannya.
           $mp = Join-Path $env:ProgramFiles "Windows Defender\MpCmdRun.exe"
-          if (-not (Test-Path $mp)) { Write-Host "::notice::Windows Defender tidak tersedia di runner; pemindaian dilewati."; exit 0 }
-          foreach ($f in Get-ChildItem "$env:BUNDLE/nsis/*.exe", "$env:BUNDLE/msi/*.msi") {
-            & $mp -Scan -ScanType 3 -File $f.FullName -DisableRemediation | Out-Host
-            if ($LASTEXITCODE -eq 2) { throw "Windows Defender menemukan ancaman di $($f.Name)" }
-            if ($LASTEXITCODE -ne 0) { Write-Host "::warning::Pemindaian $($f.Name) tidak selesai (kode $LASTEXITCODE)." } else { Write-Host "Bersih: $($f.Name)" }
+          $status = $null
+          try { $status = Get-MpComputerStatus -ErrorAction Stop } catch { }
+          if (-not (Test-Path $mp) -or -not $status -or -not $status.AntivirusEnabled) {
+            Write-Host "::notice::Windows Defender tidak aktif di runner; pemindaian Defender dilewati."
+            "DEFENDER=skipped" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+            exit 0
           }
+          $clean = $true
+          foreach ($f in Get-ChildItem "$env:BUNDLE/nsis/*.exe", "$env:BUNDLE/msi/*.msi") {
+            $out = (& $mp -Scan -ScanType 3 -File $f.FullName -DisableRemediation 2>&1 | Out-String)
+            Write-Host $out
+            if ($out -match "found no threats") { Write-Host "Bersih: $($f.Name)" }
+            elseif ($out -match "found \d+ threats") { throw "Windows Defender menemukan ancaman di $($f.Name)" }
+            else { $clean = $false; Write-Host "::warning::Pemindaian Defender $($f.Name) tidak selesai." }
+          }
+          "DEFENDER=$(if ($clean) { 'clean' } else { 'skipped' })" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           exit 0
+
+      - name: Pindai dengan VirusTotal (bila VIRUSTOTAL_API_KEY diatur)
+        continue-on-error: true
+        shell: pwsh
+        env:
+          VT_KEY: ${{ secrets.VIRUSTOTAL_API_KEY }}
+        run: |
+          if (-not $env:VT_KEY) { Write-Host "VIRUSTOTAL_API_KEY tidak diatur; dilewati."; exit 0 }
+          $h = @{ "x-apikey" = $env:VT_KEY }
+          $lines = @()
+          foreach ($f in Get-ChildItem "$env:BUNDLE/nsis/*.exe", "$env:BUNDLE/msi/*.msi") {
+            $sha = (Get-FileHash $f.FullName -Algorithm SHA256).Hash.ToLower()
+            $up = Invoke-RestMethod -Method Post -Uri "https://www.virustotal.com/api/v3/files" -Headers $h -Form @{ file = Get-Item $f.FullName }
+            $stats = $null
+            for ($i = 0; $i -lt 20; $i++) {
+              Start-Sleep -Seconds 20 # batas API gratis: 4 permintaan/menit
+              $an = Invoke-RestMethod -Uri "https://www.virustotal.com/api/v3/analyses/$($up.data.id)" -Headers $h
+              if ($an.data.attributes.status -eq "completed") { $stats = $an.data.attributes.stats; break }
+            }
+            if (-not $stats) { Write-Host "::warning::Analisis VirusTotal $($f.Name) belum selesai."; continue }
+            $bad = [int]$stats.malicious + [int]$stats.suspicious
+            $total = [int]$stats.malicious + [int]$stats.suspicious + [int]$stats.undetected + [int]$stats.harmless
+            if ($bad -gt 0) { Write-Host "::warning title=VirusTotal::$($f.Name): $bad dari $total mesin menandai file (periksa apakah positif palsu)." }
+            $lines += "- VirusTotal $($f.Name): $bad dari $total mesin antivirus menandai file. [Lihat laporan](https://www.virustotal.com/gui/file/$sha)"
+          }
+          if ($lines) { $lines | Set-Content -Path "$env:RUNNER_TEMP/virustotal.md" -Encoding utf8 }
 
       - name: Tanda tangan updater dan manifest (rilis tag)
         if: env.IS_TAG == 'true'
@@ -158,6 +197,10 @@ jobs:
           $lines | Set-Content -Path "$env:BUNDLE/SHA256SUMS.txt" -Encoding ascii
           $setup = ($files | Where-Object Extension -eq ".exe" | Select-Object -First 1).Name
           $signed = if ($env:SIGNED -eq "true") { "Installer ditandatangani (Authenticode) dan tanda tangannya diverifikasi saat build." } else { "Installer belum bertanda tangan kode, sehingga Windows SmartScreen menampilkan peringatan. Pastikan file berasal dari halaman rilis ini dan checksum-nya cocok, lalu pilih **More info → Run anyway**." }
+          $scan = @()
+          if ($env:DEFENDER -eq "clean") { $scan += "- Dipindai Windows Defender saat build: tidak ada ancaman." }
+          $vt = Join-Path $env:RUNNER_TEMP "virustotal.md"
+          if (Test-Path $vt) { $scan += Get-Content $vt }
           @(
             "## Cara memasang",
             "",
@@ -168,7 +211,7 @@ jobs:
             "## Keamanan",
             "",
             "- $signed",
-            "- Dibuat otomatis oleh GitHub Actions dari kode di repo ini setelah seluruh uji lulus, dan dipindai Windows Defender.",
+            "- Dibuat otomatis oleh GitHub Actions dari kode di repo ini setelah seluruh uji frontend dan backend lulus.",
             "- Cocokkan checksum di PowerShell: ``Get-FileHash .\$setup -Algorithm SHA256`` dengan isi **SHA256SUMS.txt**:",
             "",
             '```',
@@ -176,7 +219,7 @@ jobs:
             '```',
             "",
             "- Bukti asal-usul build: ``gh attestation verify .\$setup -R $env:GITHUB_REPOSITORY``."
-          ) | Set-Content -Path "$env:RUNNER_TEMP/release-notes.md" -Encoding utf8
+          ) + $scan | Set-Content -Path "$env:RUNNER_TEMP/release-notes.md" -Encoding utf8
           Get-Content "$env:BUNDLE/SHA256SUMS.txt"
 
       - name: Attestation asal-usul build
