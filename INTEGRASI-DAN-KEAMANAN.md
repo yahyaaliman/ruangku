@@ -1,6 +1,6 @@
 # Fitur Windows, sinkronisasi, dan akses proyek
 
-Perubahan ini melanjutkan versi 0.5.0. Rilis installer baru dibuat setelah perubahan digabung dan versi rilis ditetapkan. Pengaturan OAuth dan kunci penandatanganan tidak disertakan dalam kode.
+Fitur-fitur ini dirilis di versi 0.6.0. Pengaturan OAuth dan kunci penandatanganan tidak disertakan dalam kode.
 
 ## Notifikasi Windows
 

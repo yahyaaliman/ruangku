@@ -1,6 +1,11 @@
 # Ruangku
 
-**Pengembangan berikutnya:** aksi toast Windows, updater bertanda tangan, Google Tasks/Outlook, izin proyek anggota, laporan PDF/Excel, pratinjau file, dan enkripsi snapshot. Lihat [panduan penyiapan dan batasan](INTEGRASI-DAN-KEAMANAN.md) sebelum mengaktifkan integrasi atau memperbarui server tim.
+**Baru di versi 0.6**
+
+- **Notifikasi Windows dengan tombol** Selesai dan Tunda 10 menit langsung dari toast.
+- **Pembaruan di dalam aplikasi** yang diverifikasi tanda tangan (Pengaturan → Data & keamanan).
+- **Google Tasks dan Outlook Calendar** dua arah per proyek, **izin proyek** untuk anggota tim dan bot, **laporan mingguan PDF/Excel**, **pratinjau file** (gambar, PDF, teks), dan **enkripsi snapshot** sinkronisasi.
+- Lihat [panduan penyiapan dan batasan](INTEGRASI-DAN-KEAMANAN.md) sebelum mengaktifkan integrasi atau memperbarui server tim.
 
 **Baru di versi 0.5: ikon ruang, tab kalender dasbor, dan akun Google**
 
@@ -80,14 +85,14 @@ Semua data disimpan lokal di `%APPDATA%\com.ruangku.app\ruangku.db` (SQLite).
 1. Buat repository baru di GitHub, lalu unggah isi folder ini (atau `git push`).
 2. Buka tab **Actions** → **Build Windows**. Workflow berjalan otomatis setiap push ke `main` (atau klik **Run workflow**). Uji frontend dan backend dijalankan dulu sebelum build.
 3. Setelah selesai (sekitar 10–15 menit), buka run tersebut dan unduh **Ruangku-Windows-installer** di bagian *Artifacts*.
-4. Jalankan `Ruangku_0.5.0_x64-setup.exe`. Installer dipasang untuk user saat ini, tanpa hak admin.
+4. Jalankan `Ruangku_0.6.0_x64-setup.exe`. Installer dipasang untuk user saat ini, tanpa hak admin.
 
 ### Rilis dan pembaruan otomatis
 
 Push tag versi untuk menerbitkan installer sebagai **GitHub Release**:
 
 ```powershell
-git tag v0.5.0
+git tag v0.6.0
 git push --tags
 ```
 
