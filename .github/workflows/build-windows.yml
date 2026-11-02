@@ -222,17 +222,30 @@ jobs:
           if ($env:DEFENDER -eq "clean") { $scan += "- Dipindai Windows Defender saat build: tidak ada ancaman." }
           $vt = Join-Path $env:RUNNER_TEMP "virustotal.md"
           if (Test-Path $vt) { $scan += Get-Content $vt }
+          # Bagian versi ini dari CHANGELOG.md (antara "## [<versi>]" dan judul "## [" berikutnya).
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $changes = @()
+          $inside = $false
+          foreach ($l in Get-Content CHANGELOG.md -Encoding utf8) {
+            if ($l -match '^## \[') { if ($inside) { break }; $inside = $l.StartsWith("## [$version]"); continue }
+            if ($inside -and $l -notmatch '^\[.+\]: ') { $changes += ($l -replace '^### ', '## ') }
+          }
+          if (-not ($changes -join "").Trim()) { $changes = @("Lihat CHANGELOG.md untuk perubahan versi ini.") }
           @(
+            "# Ruangku $version",
+            ""
+          ) + $changes + @(
+            "",
             "## Cara memasang",
             "",
             "1. Unduh **$setup** (installer standar, tanpa hak admin, terpasang untuk pengguna ini).",
-            "2. Jalankan, ikuti wizard, lalu buka Ruangku dari Start Menu atau desktop. Versi lama diperbarui otomatis; data tetap aman.",
+            "2. Jalankan, ikuti wizard, lalu buka Ruangku dari Start Menu atau desktop. Versi lama diperbarui otomatis; data tetap aman. Bila masih ada Ruangku lama yang dipasang lewat .msi, installer menawarkan untuk mencopotnya.",
             "3. File **.msi** ditujukan untuk penerapan oleh admin IT (dipasang untuk semua pengguna).",
             "",
             "## Keamanan",
             "",
             "- $signed",
-            "- Dibuat otomatis oleh GitHub Actions dari kode di repo ini setelah seluruh uji frontend dan backend lulus.",
+            "- Dibuat otomatis oleh GitHub Actions dari kode di repo ini setelah uji frontend, uji backend, dan uji asap di Windows sungguhan (pasang, buka semua halaman, widget, sticky note, catat cepat, layar istirahat, tutup paksa, pasang ulang, copot) lulus.",
             "- Cocokkan checksum di PowerShell: ``Get-FileHash .\$setup -Algorithm SHA256`` dengan isi **SHA256SUMS.txt**:",
             "",
             '```',
