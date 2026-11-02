@@ -58,6 +58,8 @@ pub fn read_snapshot(path: &Path) -> Result<Snapshot, String> {
     parse_snapshot(&text)
 }
 
+/// Sinkron tanpa enkripsi (dipakai uji; aplikasi memakai `run_protected`).
+#[cfg(test)]
 pub fn run(
     conn: &mut Connection,
     folder: &Path,

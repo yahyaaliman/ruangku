@@ -1,3 +1,5 @@
+// Aksi toast hanya ada di Windows; di platform lain sebagian kode hanya dipakai uji.
+#![cfg_attr(not(windows), allow(unused_imports, dead_code))]
 use crate::{db, reminders, AppState};
 use tauri::{AppHandle, Emitter, Manager};
 

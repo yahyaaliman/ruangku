@@ -42,7 +42,7 @@ tokio = { version = "1", features = ["time"] }
 
 [target.'cfg(windows)'.dependencies]
 winrt-toast-reborn = "0.3.8"
-windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_UI_Input_KeyboardAndMouse", "Win32_System_SystemInformation", "Win32_Security_Credentials"] }
+windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_UI_Input_KeyboardAndMouse", "Win32_System_SystemInformation", "Win32_Security_Credentials", "Win32_UI_WindowsAndMessaging"] }
 
 [dev-dependencies]
 tempfile = "3"

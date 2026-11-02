@@ -652,11 +652,25 @@ fn break_action(app: AppHandle, action: String) {
 }
 
 fn show_main(app: &AppHandle) {
-    if let Some(w) = app.get_webview_window("main") {
-        let _ = w.show();
-        let _ = w.unminimize();
-        let _ = w.set_focus();
-    }
+    let w = match app.get_webview_window("main") {
+        Some(w) => w,
+        // Jendela utama hilang (mis. WebView2 sempat crash): buat ulang dari konfigurasi.
+        None => {
+            let Some(cfg) = app.config().app.windows.iter().find(|w| w.label == "main").cloned() else { return };
+            match tauri::WebviewWindowBuilder::from_config(app, &cfg).and_then(|b| b.build()) {
+                Ok(w) => w,
+                Err(e) => {
+                    if let Ok(dir) = app.path().app_data_dir() {
+                        system::log_write(&dir, "ERROR", &format!("Gagal membuat ulang jendela utama: {e}"));
+                    }
+                    return;
+                }
+            }
+        }
+    };
+    let _ = w.show();
+    let _ = w.unminimize();
+    let _ = w.set_focus();
 }
 
 fn start_background_jobs(app: AppHandle) {
@@ -773,10 +787,42 @@ fn device_name() -> String {
         .unwrap_or_else(|_| "Perangkat ini".into())
 }
 
+/// Tampilkan galat fatal sebagai kotak pesan Windows (aplikasi GUI tidak punya konsol),
+/// supaya kegagalan saat start tidak terlihat seperti "tidak terjadi apa-apa".
+fn fatal_dialog(msg: &str) {
+    #[cfg(windows)]
+    {
+        use windows_sys::Win32::UI::WindowsAndMessaging::{MessageBoxW, MB_ICONERROR, MB_OK};
+        let wide = |s: &str| s.encode_utf16().chain(std::iter::once(0)).collect::<Vec<u16>>();
+        let (text, title) = (wide(msg), wide("Ruangku gagal dijalankan"));
+        unsafe { MessageBoxW(std::ptr::null_mut(), text.as_ptr(), title.as_ptr(), MB_OK | MB_ICONERROR) };
+    }
+    #[cfg(not(windows))]
+    eprintln!("Ruangku gagal dijalankan: {msg}");
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| show_main(app)))
+    // Catat sejak detik pertama (sebelum plugin & jendela dibuat), termasuk panic, supaya
+    // kegagalan WebView2/database/plugin saat start bisa dilacak di logs\ruangku.log.
+    let early_dir = mcp::data_dir_standalone();
+    if let Some(dir) = early_dir.clone() {
+        let _ = std::fs::create_dir_all(&dir);
+        system::log_write(&dir, "INFO", &format!("Memulai Ruangku {} (pid {})", env!("CARGO_PKG_VERSION"), std::process::id()));
+        let prev = std::panic::take_hook();
+        std::panic::set_hook(Box::new(move |info| {
+            system::log_write(&dir, "PANIC", &info.to_string());
+            prev(info);
+        }));
+    }
+    let result = tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            // Dijalankan di salinan yang SUDAH berjalan saat ikon Ruangku diklik lagi.
+            if let Ok(dir) = app.path().app_data_dir() {
+                system::log_write(&dir, "INFO", "Ruangku dibuka lagi; menampilkan jendela utama");
+            }
+            show_main(app);
+        }))
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, _shortcut, event| {
@@ -808,15 +854,7 @@ pub fn run() {
                 }
             };
             app.manage(AppState { conn: Mutex::new(conn), device_id, device_name: device_name() });
-            {
-                let log_dir = dir.clone();
-                let prev = std::panic::take_hook();
-                std::panic::set_hook(Box::new(move |info| {
-                    system::log_write(&log_dir, "PANIC", &info.to_string());
-                    prev(info);
-                }));
-                system::log_write(&dir, "INFO", &format!("Ruangku {} dimulai", app.package_info().version));
-            }
+            system::log_write(&dir, "INFO", &format!("Ruangku {} dimulai", app.package_info().version));
 
             #[cfg(windows)]
             if let Err(e) = winrt_toast_reborn::register("com.ruangku.app", "Ruangku", None) { eprintln!("Registrasi toast: {e}"); }
@@ -951,8 +989,17 @@ pub fn run() {
             app_exe_path,
             set_zoom,
         ])
-        .run(tauri::generate_context!())
-        .expect("gagal menjalankan Ruangku");
+        .run(tauri::generate_context!());
+    if let Err(e) = result {
+        let log = early_dir.as_ref().map(|d| system::log_path(d).display().to_string()).unwrap_or_default();
+        if let Some(dir) = early_dir.as_ref() {
+            system::log_write(dir, "ERROR", &format!("Gagal menjalankan Ruangku: {e}"));
+        }
+        fatal_dialog(&format!(
+            "{e}\n\nCoba tutup Ruangku dari ikon tray atau Task Manager, lalu buka lagi. Bila masih gagal, pasang ulang installer terbaru (data Anda tidak dihapus).\n\nLog: {log}"
+        ));
+        std::process::exit(1);
+    }
 }
 
 #[tauri::command]
