@@ -10,6 +10,7 @@ fn ensure(app: &AppHandle) -> tauri::Result<WebviewWindow> {
     if let Some(w) = app.get_webview_window(LABEL) {
         return Ok(w);
     }
+    crate::note_window_thread(app, "catat cepat");
     WebviewWindowBuilder::new(app, LABEL, WebviewUrl::App("index.html".into()))
         .disable_drag_drop_handler()
         .title("Catat cepat")

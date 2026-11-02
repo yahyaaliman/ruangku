@@ -294,6 +294,7 @@ export async function mockCall(cmd: string, a: Record<string, any>): Promise<unk
       return [];
     case "notify_test":
     case "notify_send":
+    case "capture_open":
     case "capture_hide":
     case "open_main":
       return null;

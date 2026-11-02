@@ -1,4 +1,5 @@
 import type { FsEntry, Place, RawRecord, SyncReport, SyncStatus, WidgetConfig } from "./types";
+import { track } from "./watchdog";
 
 export interface HttpReq {
   method: string;
@@ -53,10 +54,10 @@ export const isDesktop = typeof window !== "undefined" && "__TAURI_INTERNALS__" 
 async function call<T>(cmd: string, args: Record<string, unknown> = {}): Promise<T> {
   if (isDesktop) {
     const { invoke } = await import("@tauri-apps/api/core");
-    return invoke<T>(cmd, args);
+    return track(cmd, invoke<T>(cmd, args));
   }
   const { mockCall } = await import("./mock");
-  return mockCall(cmd, args) as Promise<T>;
+  return track(cmd, mockCall(cmd, args) as Promise<T>);
 }
 
 export type AppEvent = "updater-progress" | "records-changed" | "sync-done" | "setting-changed" | "widget-config" | "navigate" | "widget-open-settings" | "capture-open" | "break-state" | "bot-event" | "team-sync" | "team-remote-change" | "team-realtime" | "mcp-request";
@@ -143,6 +144,7 @@ export const api = {
   notifyTest: () => call<void>("notify_test"),
   notifySend: (title: string, body: string) => call<void>("notify_send", { title, body }),
   captureHide: () => call<void>("capture_hide"),
+  captureOpen: () => call<void>("capture_open"),
 
   widgetConfig: () => call<WidgetConfig>("widget_config"),
   widgetSetVisible: (visible: boolean) => call<WidgetConfig>("widget_set_visible", { visible }),

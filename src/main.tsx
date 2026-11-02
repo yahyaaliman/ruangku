@@ -12,6 +12,7 @@ import { lazy, Suspense } from "react";
 import { api, isBreak, isCapture, isDesktop, isWidget, stickyId } from "./lib/api";
 import { followTheme } from "./lib/theme";
 import { followAppearance } from "./lib/appearance";
+import { PageLoading } from "./components/Stall";
 
 // Setiap jendela (aplikasi, widget, sticky note, catat cepat, layar istirahat) hanya memuat kodenya sendiri.
 const App = lazy(() => import("./App"));
@@ -37,6 +38,6 @@ if (!isWidget) {
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    <Suspense fallback={null}>{stickyId ? <Sticky id={stickyId} /> : isBreak ? <BreakScreen /> : isCapture ? <Capture /> : isWidget ? <Widget /> : <App />}</Suspense>
+    <Suspense fallback={stickyId || isBreak || isCapture || isWidget ? null : <PageLoading />}>{stickyId ? <Sticky id={stickyId} /> : isBreak ? <BreakScreen /> : isCapture ? <Capture /> : isWidget ? <Widget /> : <App />}</Suspense>
   </React.StrictMode>,
 );

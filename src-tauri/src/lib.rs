@@ -206,14 +206,14 @@ fn snapshot_bytes(state: &AppState) -> CmdResult<(Vec<u8>, usize)> {
     Ok((serde_json::to_vec_pretty(&snap).map_err(err)?, n))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn backup_export(state: State<AppState>, path: String) -> CmdResult<usize> {
     let (bytes, n) = snapshot_bytes(&state)?;
     std::fs::write(&path, bytes).map_err(err)?;
     Ok(n)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn mcp_start(app: AppHandle, port: u16, token: String) -> CmdResult<mcp::McpStatus> {
     mcp::start(&app, data_dir(&app)?, port, token)
 }
@@ -241,7 +241,7 @@ fn set_zoom(webview: tauri::Webview, scale: f64) -> CmdResult<()> {
 }
 
 /// Lokasi ruangku.exe (untuk cuplikan konfigurasi Claude Desktop / tunnel ChatGPT).
-#[tauri::command]
+#[tauri::command(async)]
 fn app_exe_path() -> CmdResult<String> {
     std::env::current_exe().map(|p| p.to_string_lossy().to_string()).map_err(err)
 }
@@ -276,7 +276,7 @@ fn auto_backup_tick(app: &AppHandle) {
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn backups_list(app: AppHandle) -> CmdResult<Vec<system::BackupInfo>> {
     Ok(system::list_backups(&system::backup_dir(&data_dir(&app)?)))
 }
@@ -288,7 +288,7 @@ fn backups_dir(app: AppHandle) -> CmdResult<String> {
     Ok(d.to_string_lossy().into())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn backup_now(app: AppHandle, state: State<AppState>) -> CmdResult<String> {
     let dir = data_dir(&app)?;
     let (bytes, _) = snapshot_bytes(&state)?;
@@ -299,7 +299,7 @@ fn backup_now(app: AppHandle, state: State<AppState>) -> CmdResult<String> {
 
 /// Pulihkan database dari file backup di folder backup. Sebelumnya dibuat
 /// backup pengaman "sebelum-pulihkan-…" supaya langkah ini bisa dibatalkan.
-#[tauri::command]
+#[tauri::command(async)]
 fn backup_restore(app: AppHandle, state: State<AppState>, name: String) -> CmdResult<usize> {
     let dir = data_dir(&app)?;
     let bdir = system::backup_dir(&dir);
@@ -313,12 +313,12 @@ fn backup_restore(app: AppHandle, state: State<AppState>, name: String) -> CmdRe
     Ok(n)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn secret_set(state: State<AppState>, key: String, value: String) -> CmdResult<String> {
     state.with(|c| system::secret_set(c, &key, &value)).map(|s| s.to_string())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn secret_get(state: State<AppState>, key: String) -> CmdResult<Option<String>> {
     state.with(|c| system::secret_get(c, &key))
 }
@@ -337,7 +337,7 @@ async fn oauth_loopback(url: String, timeout_secs: Option<u64>) -> CmdResult<sys
     .map_err(err)?
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn team_realtime_start(app: AppHandle, url: String, token: String) -> CmdResult<()> {
     if !(url.starts_with("https://") || url.starts_with("http://")) {
         return Err("Alamat server tidak valid.".into());
@@ -353,7 +353,7 @@ fn team_realtime_stop() {
     realtime::stop();
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn open_url(url: String) -> CmdResult<()> {
     if !(url.starts_with("https://") || url.starts_with("http://") || url.starts_with("mailto:")) {
         return Err("Hanya tautan web yang bisa dibuka.".into());
@@ -361,20 +361,20 @@ fn open_url(url: String) -> CmdResult<()> {
     tauri_plugin_opener::open_url(url, None::<&str>).map_err(err)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn write_text_file(path: String, contents: String) -> CmdResult<()> {
     std::fs::write(&path, contents).map_err(err)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn fm_preview(path: String) -> CmdResult<preview::Preview> { preview::read(std::path::Path::new(&path)) }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn write_binary_file(path: String, contents: Vec<u8>) -> CmdResult<()> { std::fs::write(path, contents).map_err(err) }
 
 
 
-#[tauri::command]
+#[tauri::command(async)]
 fn read_text_file(path: String) -> CmdResult<String> {
     let meta = std::fs::metadata(&path).map_err(err)?;
     if meta.len() > 20 * 1024 * 1024 {
@@ -390,19 +390,19 @@ fn log_write(app: AppHandle, level: String, message: String) -> CmdResult<()> {
     Ok(())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn log_tail(app: AppHandle, lines: Option<usize>) -> CmdResult<Vec<String>> {
     Ok(system::log_tail(&data_dir(&app)?, lines.unwrap_or(200)))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn diagnostics(app: AppHandle, state: State<AppState>) -> CmdResult<system::Diagnostics> {
     let dir = data_dir(&app)?;
     let version = app.package_info().version.to_string();
     state.with(|c| system::diagnostics(c, &dir, &version))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn backup_import(app: AppHandle, state: State<AppState>, path: String) -> CmdResult<usize> {
     let snap = sync::read_snapshot(Path::new(&path)).map_err(|e| format!("File backup tidak valid: {e}"))?;
     let n = state.with(|c| db::merge(c, &snap.records))?;
@@ -412,7 +412,7 @@ fn backup_import(app: AppHandle, state: State<AppState>, path: String) -> CmdRes
 
 // ---------- File manager ----------
 
-#[tauri::command]
+#[tauri::command(async)]
 fn fm_places(app: AppHandle) -> Vec<files::Place> {
     let p = app.path();
     let mut out = Vec::new();
@@ -439,17 +439,17 @@ async fn fm_list(path: String) -> CmdResult<Vec<files::Entry>> {
     tauri::async_runtime::spawn_blocking(move || files::list_dir(Path::new(&path))).await.map_err(err)?
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn fm_mkdir(parent: String, name: String) -> CmdResult<files::Entry> {
     files::mkdir(Path::new(&parent), &name)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn fm_create_file(parent: String, name: String) -> CmdResult<files::Entry> {
     files::create_file(Path::new(&parent), &name)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn fm_rename(path: String, new_name: String) -> CmdResult<files::Entry> {
     files::rename(Path::new(&path), &new_name)
 }
@@ -487,35 +487,35 @@ async fn fm_dir_size(path: String) -> CmdResult<(u64, u64)> {
     tauri::async_runtime::spawn_blocking(move || files::dir_size(Path::new(&path))).await.map_err(err)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn fm_stat(path: String) -> Option<files::Entry> {
     files::entry_for(Path::new(&path))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn fm_open(path: String) -> CmdResult<()> {
     tauri_plugin_opener::open_path(&path, None::<&str>).map_err(err)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn fm_reveal(path: String) -> CmdResult<()> {
     tauri_plugin_opener::reveal_item_in_dir(&path).map_err(err)
 }
 
 // ---------- Sistem ----------
 
-#[tauri::command]
+#[tauri::command(async)]
 fn autostart_get(app: AppHandle) -> CmdResult<bool> {
     app.autolaunch().is_enabled().map_err(err)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn autostart_set(app: AppHandle, enabled: bool) -> CmdResult<()> {
     let m = app.autolaunch();
     if enabled { m.enable() } else { m.disable() }.map_err(err)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn notify_test(app: AppHandle) -> CmdResult<()> {
     app.notification()
         .builder()
@@ -609,12 +609,18 @@ fn capture_hide(app: AppHandle) {
     capture::hide(&app);
 }
 
+/// Buka jendela catat cepat dari aplikasi (palet perintah). Async: membuat jendela.
+#[tauri::command]
+async fn capture_open(app: AppHandle) {
+    capture::show(&app);
+}
+
 #[tauri::command]
 fn capture_shortcut() -> &'static str {
     capture::SHORTCUT_LABEL
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn notify_send(app: AppHandle, title: String, body: String) -> CmdResult<()> {
     app.notification().builder().title(&title).body(&body).show().map_err(err)
 }
@@ -654,6 +660,19 @@ async fn break_action(app: AppHandle, action: String) {
     breaks::action(&app, &action, db::now_ms());
 }
 
+static MAIN_THREAD: std::sync::OnceLock<std::thread::ThreadId> = std::sync::OnceLock::new();
+
+/// Dipanggil oleh setiap pembuat jendela. Membuat jendela WebView2 di utas utama (perintah
+/// sinkron, handler tray/pintasan) membuat Ruangku macet di Windows. Pelanggaran dicatat di log
+/// sebagai "BUG:" dan uji asap Windows di CI gagal bila baris itu muncul.
+pub(crate) fn note_window_thread(app: &AppHandle, what: &str) {
+    if MAIN_THREAD.get() == Some(&std::thread::current().id()) {
+        if let Ok(dir) = app.path().app_data_dir() {
+            system::log_write(&dir, "ERROR", &format!("BUG: jendela {what} dibuat di utas utama; di Windows ini bisa membuat Ruangku macet"));
+        }
+    }
+}
+
 /// Jalankan aksi yang mungkin membuat jendela di utas terpisah. Event handler (tray, pintasan
 /// global, single-instance) berjalan di utas utama; membuat jendela WebView2 di sana membuat
 /// Windows deadlock. Dari utas lain, Tauri meneruskan pembuatan jendela ke event loop dengan aman.
@@ -668,14 +687,18 @@ fn show_main(app: &AppHandle) {
         // Jendela utama hilang (mis. WebView2 sempat crash): buat ulang dari konfigurasi.
         None => {
             let Some(cfg) = app.config().app.windows.iter().find(|w| w.label == "main").cloned() else { return };
-            off_main(app, move |app| match tauri::WebviewWindowBuilder::from_config(app, &cfg).and_then(|b| b.build()) {
-                Ok(w) => {
-                    let _ = w.show();
-                    let _ = w.set_focus();
-                }
-                Err(e) => {
-                    if let Ok(dir) = app.path().app_data_dir() {
-                        system::log_write(&dir, "ERROR", &format!("Gagal membuat ulang jendela utama: {e}"));
+            off_main(app, move |app| {
+                note_window_thread(app, "utama");
+                let built = tauri::WebviewWindowBuilder::from_config(app, &cfg).and_then(|b| b.build());
+                match built {
+                    Ok(w) => {
+                        let _ = w.show();
+                        let _ = w.set_focus();
+                    }
+                    Err(e) => {
+                        if let Ok(dir) = app.path().app_data_dir() {
+                            system::log_write(&dir, "ERROR", &format!("Gagal membuat ulang jendela utama: {e}"));
+                        }
                     }
                 }
             });
@@ -819,6 +842,7 @@ fn fatal_dialog(msg: &str) {
 pub fn run() {
     // Catat sejak detik pertama (sebelum plugin & jendela dibuat), termasuk panic, supaya
     // kegagalan WebView2/database/plugin saat start bisa dilacak di logs\ruangku.log.
+    let _ = MAIN_THREAD.set(std::thread::current().id());
     let early_dir = mcp::data_dir_standalone();
     if let Some(dir) = early_dir.clone() {
         let _ = std::fs::create_dir_all(&dir);
@@ -877,7 +901,14 @@ pub fn run() {
 
             #[cfg(windows)]
             if let Err(e) = winrt_toast_reborn::register("com.ruangku.app", "Ruangku", None) { eprintln!("Registrasi toast: {e}"); }
-            build_tray(app.handle())?;
+            // Tanpa ikon tray (mis. Explorer belum berjalan) Ruangku tetap bisa dipakai.
+            let tray_ok = match build_tray(app.handle()) {
+                Ok(()) => true,
+                Err(e) => {
+                    system::log_write(&dir, "WARN", &format!("Ikon tray tidak bisa dibuat: {e}"));
+                    false
+                }
+            };
             {
                 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut};
                 let sc = Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::Space);
@@ -888,13 +919,21 @@ pub fn run() {
             }
 
             let start_hidden = std::env::args().any(|a| a == HIDDEN_ARG);
-            if !start_hidden {
+            // Tanpa tray, jendela yang tersembunyi tidak bisa dibuka lagi; tampilkan saja.
+            if !start_hidden || !tray_ok {
                 show_main(app.handle());
             }
-            if widget::load(app.handle()).visible {
-                let _ = widget::set_visible(app.handle(), true);
-            }
-            sticky::restore(app.handle());
+            // Widget dan sticky note yang terakhir terbuka dibuat di utas terpisah (lihat off_main).
+            off_main(app.handle(), |a| {
+                if widget::load(a).visible {
+                    if let Err(e) = widget::set_visible(a, true) {
+                        if let Ok(dir) = a.path().app_data_dir() {
+                            system::log_write(&dir, "WARN", &format!("Widget tidak bisa dibuka saat start: {e}"));
+                        }
+                    }
+                }
+                sticky::restore(a);
+            });
             start_background_jobs(app.handle().clone());
             Ok(())
         })
@@ -964,6 +1003,7 @@ pub fn run() {
             notify_test,
             notify_send,
             capture_hide,
+            capture_open,
             capture_shortcut,
             widget_config,
             widget_set_visible,
@@ -1021,7 +1061,7 @@ pub fn run() {
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn snapshot_migrate_folder(state: State<AppState>) -> CmdResult<usize> {
     let c = state.conn.lock().map_err(|e| e.to_string())?;
     let password = snapshot_crypto::password(&c)?.ok_or("Aktifkan enkripsi terlebih dahulu.")?;

@@ -71,6 +71,7 @@ fn build(app: &AppHandle, id: &str, g: &StickyGeom, offset: i32) -> tauri::Resul
     if let Some(w) = app.get_webview_window(&label) {
         return Ok(w);
     }
+    crate::note_window_thread(app, "sticky note");
     let w = WebviewWindowBuilder::new(app, &label, WebviewUrl::App("index.html".into()))
         .disable_drag_drop_handler()
         .title("Sticky note")

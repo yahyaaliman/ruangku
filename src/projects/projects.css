@@ -52,6 +52,16 @@ i.pm-lg { width: 14px; height: 14px; margin: 0 6px; }
 .demo-banner span { flex: 1; min-width: 260px; }
 .demo-banner .link { color: var(--kunyit-ink); }
 
+/* ---------- Ruangku tidak merespons ---------- */
+.stall-banner {
+  display: flex; align-items: flex-start; gap: 10px;
+  margin: 14px 36px 0; padding: 10px 14px; border-radius: var(--r);
+  background: var(--bata-soft); color: var(--bata); font-size: 13px; line-height: 1.45;
+}
+.stall-banner svg { flex: none; margin-top: 2px; }
+.page-loading-msg { display: flex; align-items: center; gap: 8px; }
+.page-loading-help { margin-top: 10px; max-width: 60ch; color: var(--ink-2); font-size: 13px; }
+
 /* ---------- Formulir proyek ---------- */
 .pf-name { display: grid; grid-template-columns: 72px 1fr; gap: 10px; align-items: end; }
 .pf-icon { font-size: 18px; height: 37px; padding: 0 6px; }

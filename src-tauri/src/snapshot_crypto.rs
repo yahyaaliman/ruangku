@@ -44,7 +44,7 @@ pub fn password(c: &rusqlite::Connection) -> Result<Option<String>, String> {
     system::secret_get(c, SECRET).map_err(|e| e.to_string())?.filter(|v| !v.is_empty()).map(Some).ok_or("Masukkan kata sandi snapshot pada perangkat ini.".into())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn snapshot_unlock(app: AppHandle, state: State<AppState>, password: String) -> Result<(), String> {
     if password.chars().count() < 12 { return Err("Gunakan kata sandi minimal 12 karakter.".into()); }
     let c = state.conn.lock().map_err(|e| e.to_string())?;
@@ -58,12 +58,12 @@ pub fn snapshot_unlock(app: AppHandle, state: State<AppState>, password: String)
     Ok(())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn snapshot_encode(state: State<AppState>, text: String) -> Result<String, String> {
     let c = state.conn.lock().map_err(|e| e.to_string())?;
     match password(&c)? { Some(p) => encrypt(&text, &p), None => Ok(text) }
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn snapshot_decode(state: State<AppState>, text: String, migrate: bool) -> Result<String, String> {
     let c = state.conn.lock().map_err(|e| e.to_string())?;
     let p = password(&c)?;

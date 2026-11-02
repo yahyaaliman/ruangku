@@ -1,13 +1,14 @@
 # Installer Windows Ruangku (NSIS .exe untuk pengguna, .msi untuk penerapan IT).
 #
 # - Push ke main / jalankan manual: installer diunduh dari bagian "Artifacts" halaman run.
-# - Push tag versi (`git tag v0.6.0 && git push --tags`): installer diterbitkan sebagai
+# - Push tag versi (`git tag v1.0.0 && git push --tags`): installer diterbitkan sebagai
 #   GitHub Release beserta SHA256SUMS.txt dan bukti asal-usul build (attestation).
 #
 # Keamanan rantai build:
 # - Semua action dikunci ke commit SHA (bukan tag yang bisa dipindah).
 # - Hak token minimum; hanya job ini yang boleh menulis rilis & attestation.
-# - Uji frontend & backend wajib lulus sebelum build.
+# - Uji frontend & backend wajib lulus sebelum build, dan uji asap di Windows sungguhan
+#   (scripts/smoke-windows.mjs) wajib lulus sebelum installer diunggah atau dirilis.
 # - Installer diberi checksum SHA-256 dan attestation build provenance (repo publik) yang bisa
 #   dicek: `gh attestation verify <file> -R yahyaaliman/ruangku`. Dipindai Windows Defender bila
 #   aktif di runner, dan VirusTotal bila secret VIRUSTOTAL_API_KEY (gratis) diatur.
@@ -124,6 +125,25 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw "Tanda tangan tidak valid: $($f.Name)" }
             Write-Host "Tanda tangan valid: $($f.Name)"
           }
+
+      - name: Uji asap di Windows (pasang, jalankan, pasang ulang, copot)
+        timeout-minutes: 20
+        shell: pwsh
+        run: |
+          # Memasang installer yang baru dibuat, membuka setiap halaman dan setiap jenis jendela
+          # (widget, sticky note, catat cepat, layar istirahat), menutup paksa lalu membuka lagi,
+          # memasang ulang saat aplikasi berjalan, lalu mencopot. Build gagal bila ada yang macet.
+          $setup = (Get-ChildItem "$env:BUNDLE/nsis/*-setup.exe" | Select-Object -First 1).FullName
+          node scripts/smoke-windows.mjs $setup "$env:RUNNER_TEMP/uji-asap"
+          if ($LASTEXITCODE -ne 0) { throw "Uji asap Windows gagal" }
+
+      - name: Simpan hasil uji asap
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: Ruangku-uji-asap-windows
+          if-no-files-found: ignore
+          path: ${{ runner.temp }}/uji-asap
 
       - name: Pindai dengan Windows Defender (bila aktif di runner)
         shell: pwsh

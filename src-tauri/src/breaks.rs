@@ -214,22 +214,30 @@ fn log(app: &AppHandle, field: &str) {
 fn show_overlay(app: &AppHandle) {
     let w = match app.get_webview_window(LABEL) {
         Some(w) => w,
-        None => match WebviewWindowBuilder::new(app, LABEL, WebviewUrl::App("index.html".into()))
-            .disable_drag_drop_handler()
-            .title("Waktunya istirahat")
-            .initialization_script("window.__RUANGKU_BREAK__ = true;")
-            .transparent(true)
-            .decorations(false)
-            .shadow(false)
-            .skip_taskbar(true)
-            .always_on_top(true)
-            .resizable(false)
-            .visible(false)
-            .build()
-        {
-            Ok(w) => w,
-            Err(_) => return,
-        },
+        None => {
+            crate::note_window_thread(app, "istirahat");
+            let built = WebviewWindowBuilder::new(app, LABEL, WebviewUrl::App("index.html".into()))
+                .disable_drag_drop_handler()
+                .title("Waktunya istirahat")
+                .initialization_script("window.__RUANGKU_BREAK__ = true;")
+                .transparent(true)
+                .decorations(false)
+                .shadow(false)
+                .skip_taskbar(true)
+                .always_on_top(true)
+                .resizable(false)
+                .visible(false)
+                .build();
+            match built {
+                Ok(w) => w,
+                Err(e) => {
+                    if let Ok(dir) = app.path().app_data_dir() {
+                        crate::system::log_write(&dir, "ERROR", &format!("Layar istirahat tidak bisa dibuat: {e}"));
+                    }
+                    return;
+                }
+            }
+        }
     };
     if let Some(m) = app.primary_monitor().ok().flatten() {
         let _ = w.set_position(PhysicalPosition::new(m.position().x, m.position().y));

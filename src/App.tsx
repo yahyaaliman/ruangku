@@ -56,6 +56,7 @@ import { useMcpServer } from "./ai/mcp";
 import { stepZoom } from "./lib/appearance";
 import { openSettings } from "./lib/deeplink";
 import { widgetShownHint } from "./lib/widgetPrefs";
+import { PageLoading, StallBanner } from "./components/Stall";
 
 export type Page = "today" | "projects" | "tasks" | "calendar" | "schedule" | "meetings" | "courses" | "ledger" | "ibadah" | "okr" | "kpi" | "review" | "notes" | "files" | "team" | "assistant" | "guide" | "settings";
 
@@ -416,6 +417,7 @@ function Shell() {
               toast(widgetShownHint(next) ?? "Widget disembunyikan.", "info");
             },
           },
+          { id: "capture", label: "Catat cepat di jendela kecil", icon: NotebookPen, keywords: "quick capture inbox jendela", run: () => api.captureOpen() },
           { id: "break", label: "Istirahat sekarang", icon: Coffee, keywords: "rehat jeda break", run: () => breakAction("start") },
         ]
       : []),
@@ -486,8 +488,9 @@ function Shell() {
       <SidebarOpener />
       <ProjectSwitcher quick onNew={() => setNewProject({})} onManage={() => setPage("projects")} counts={openCount} />
       <main className="main">
+        <StallBanner />
         {demo === "loaded" && <DemoBanner go={setPage} />}
-        <Suspense fallback={<div className="page page-loading" aria-busy="true" />}>
+        <Suspense fallback={<PageLoading />}>
         {page === "today" && <Dashboard go={setPage} />}
         {page === "projects" && <Projects go={setPage} />}
         {page === "calendar" && <Calendar go={setPage} />}
