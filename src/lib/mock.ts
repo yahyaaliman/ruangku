@@ -294,10 +294,15 @@ export async function mockCall(cmd: string, a: Record<string, any>): Promise<unk
       return [];
     case "notify_test":
     case "notify_send":
+    case "window_ready":
+    case "break_action":
+    case "selftest_phase":
     case "capture_open":
     case "capture_hide":
     case "open_main":
       return null;
+    case "windows_ready":
+      return [];
     case "sticky_open": {
       const list: string[] = JSON.parse(localStorage.getItem("ruangku-setting-sticky_list") || "[]");
       if (!list.includes(a.id)) localStorage.setItem("ruangku-setting-sticky_list", JSON.stringify([...list, a.id]));

@@ -19,6 +19,25 @@ export function dataOf<T>(data: unknown): T {
 /** Record yang sudah "diratakan": isi data + id + updatedAt. */
 export type Item<T> = T & { id: string; updatedAt: number };
 
+/** Kolom larik wajib per jenis record. Data dari sinkron, bot, asisten AI, MCP, atau versi lama
+ * bisa tidak memilikinya; tanpa nilai bawaan, halaman yang memakainya bisa gagal tampil. */
+const ARRAY_FIELDS: Record<string, string[]> = {
+  note: ["tags"],
+  filemeta: ["tags"],
+  task: ["tags", "checklist", "dependsOn"],
+  meeting: ["attendees", "agenda", "actions"],
+  meetingseries: ["attendees", "agenda"],
+  course: ["sessions", "exams", "grading"],
+  comment: ["mentions"],
+};
+
+/** Ratakan record mentah menjadi Item, mengisi kolom larik wajib yang hilang dengan []. */
+export function itemOf<T>(r: RawRecord): Item<T> {
+  const d = { ...(dataOf<Record<string, unknown>>(r.data) ?? {}) };
+  for (const f of ARRAY_FIELDS[r.kind] ?? []) if (!Array.isArray(d[f])) d[f] = [];
+  return { ...d, id: r.id, updatedAt: r.updatedAt } as Item<T>;
+}
+
 export interface Reminder {
   title: string;
   notes?: string;

@@ -57,6 +57,7 @@ import { stepZoom } from "./lib/appearance";
 import { openSettings } from "./lib/deeplink";
 import { widgetShownHint } from "./lib/widgetPrefs";
 import { PageLoading, StallBanner } from "./components/Stall";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 export type Page = "today" | "projects" | "tasks" | "calendar" | "schedule" | "meetings" | "courses" | "ledger" | "ibadah" | "okr" | "kpi" | "review" | "notes" | "files" | "team" | "assistant" | "guide" | "settings";
 
@@ -341,6 +342,14 @@ function Shell() {
 
   // Widget / bot / asisten bisa meminta jendela utama membuka halaman tertentu.
   useEffect(() => onEvent<Page>("navigate", (p) => ALL_PAGES.includes(p) && setPage(p)), []);
+  // Uji mandiri (hanya bila Ruangku dijalankan dengan RUANGKU_SELFTEST; lihat scripts/smoke-windows.mjs).
+  useEffect(() => {
+    if (!isDesktop) return;
+    api
+      .selftestPhase()
+      .then((phase) => (phase ? import("./lib/selftest").then((m) => m.runSelfTest(phase, ALL_PAGES)) : undefined))
+      .catch((e) => api.log("ERROR", `Uji mandiri gagal dijalankan: ${errorText(e)}`));
+  }, []);
   useEffect(() => {
     const f = (e: Event) => {
       const p = (e as CustomEvent<Page>).detail;
@@ -490,6 +499,7 @@ function Shell() {
       <main className="main">
         <StallBanner />
         {demo === "loaded" && <DemoBanner go={setPage} />}
+        <ErrorBoundary key={page} where={`halaman ${page}`}>
         <Suspense fallback={<PageLoading />}>
         {page === "today" && <Dashboard go={setPage} />}
         {page === "projects" && <Projects go={setPage} />}
@@ -510,6 +520,7 @@ function Shell() {
         {page === "guide" && <Guide go={setPage} startTour={() => setTour(true)} />}
         {page === "settings" && <Settings sync={sync} go={(p) => go(p as Page)} moduleNav={MODULE_NAV.filter((n) => modules.pageOn(n.id))} />}
         </Suspense>
+        </ErrorBoundary>
       </main>
       {tour && <Tour onDone={() => setTour(false)} />}
       {palette && (

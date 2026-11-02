@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useSyncExternalStore } from "react";
 import { api, onEvent } from "./api";
-import { dataOf, type Item } from "./types";
+import { itemOf, type Item } from "./types";
 
 // Penyimpanan bersama per jenis record: satu kali muat dan satu langganan event
 // untuk seluruh jendela, berapa pun komponen yang memakai jenis yang sama.
@@ -44,7 +44,7 @@ async function load(kind: string): Promise<void> {
     do {
       e.dirty = false;
       const rows = await api.list(kind);
-      e.snap = { items: rows.map((r) => ({ ...dataOf<object>(r.data), id: r.id, updatedAt: r.updatedAt })), loading: false };
+      e.snap = { items: rows.map((r) => itemOf<object>(r)), loading: false };
       e.loaded = true;
       emit(e);
     } while (e.dirty);

@@ -609,6 +609,38 @@ fn capture_hide(app: AppHandle) {
     capture::hide(&app);
 }
 
+// ---------- Uji mandiri (hanya bila RUANGKU_SELFTEST diatur, dipakai uji asap Windows di CI) ----------
+
+static WINDOWS_READY: Mutex<std::collections::BTreeSet<String>> = Mutex::new(std::collections::BTreeSet::new());
+
+/// Setiap jendela memanggil ini setelah isinya selesai tampil.
+#[tauri::command]
+fn window_ready(kind: String) {
+    if let Ok(mut s) = WINDOWS_READY.lock() {
+        s.insert(kind);
+    }
+}
+
+/// Jenis jendela yang sudah tampil sejak aplikasi dibuka.
+#[tauri::command]
+fn windows_ready() -> Vec<String> {
+    WINDOWS_READY.lock().map(|s| s.iter().cloned().collect()).unwrap_or_default()
+}
+
+/// Tahap uji mandiri ("full", "restore", "verify"), atau None di pemakaian biasa.
+#[tauri::command]
+fn selftest_phase() -> Option<String> {
+    std::env::var_os("RUANGKU_SELFTEST")?;
+    Some(std::env::var("RUANGKU_SELFTEST_PHASE").unwrap_or_else(|_| "full".into()))
+}
+
+/// Tulis hasil uji mandiri ke berkas yang ditunjuk RUANGKU_SELFTEST.
+#[tauri::command(async)]
+fn selftest_report(text: String) -> CmdResult<()> {
+    let path = std::env::var_os("RUANGKU_SELFTEST").ok_or("Bukan mode uji mandiri.")?;
+    std::fs::write(path, text).map_err(err)
+}
+
 /// Buka jendela catat cepat dari aplikasi (palet perintah). Async: membuat jendela.
 #[tauri::command]
 async fn capture_open(app: AppHandle) {
@@ -1004,6 +1036,10 @@ pub fn run() {
             notify_send,
             capture_hide,
             capture_open,
+            window_ready,
+            windows_ready,
+            selftest_phase,
+            selftest_report,
             capture_shortcut,
             widget_config,
             widget_set_visible,

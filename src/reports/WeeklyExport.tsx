@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Download } from "lucide-react";
 import { api, errorText, saveBinaryFile } from "../lib/api";
 import { dateKey } from "../lib/date";
-import { dataOf, type Item, type KeyResult, type Kpi, type KpiEntry, type Objective } from "../lib/types";
+import { itemOf, type Item, type KeyResult, type Kpi, type KpiEntry, type Objective } from "../lib/types";
 import { useScope } from "../lib/scope";
 import { Field, Modal, useToast } from "../components/ui";
 import { reportExcel, reportPdf, weeklyReport, weekRange } from "./weekly";
@@ -15,7 +15,7 @@ export function WeeklyExport() {
   async function run(format: "pdf" | "xlsx") {
     setBusy(true);
     try {
-      const load = async <T,>(kind: string): Promise<Item<T>[]> => (await api.list(kind)).filter(r => !r.deleted).map(r => ({ ...dataOf<T>(r.data), id: r.id, updatedAt: r.updatedAt }));
+      const load = async <T,>(kind: string): Promise<Item<T>[]> => (await api.list(kind)).filter(r => !r.deleted).map(r => itemOf<T>(r));
       const [o, kr, k, e] = await Promise.all([load<Objective>("objective"), load<KeyResult>("keyresult"), load<Kpi>("kpi"), load<KpiEntry>("kpientry")]);
       const report = weeklyReport(day, scope.current?.name || "Semua proyek", o.filter(v => scope.match(v.projectId)), kr, k.filter(v => scope.match(v.projectId)), e);
       const bytes = await (format === "pdf" ? reportPdf(report) : reportExcel(report));

@@ -29,6 +29,8 @@ Rilis stabil pertama Ruangku untuk Windows 10 dan 11.
 - Perintah yang menyentuh disk, jaringan, registry, atau Credential Manager berjalan di latar sehingga tampilan tidak membeku.
 - Bila Ruangku tidak merespons, tampil banner berisi cara memulihkan alih-alih halaman kosong.
 - Ikon tray yang gagal dibuat tidak lagi menghentikan aplikasi.
+- Halaman yang gagal digambar menampilkan pesan dengan tombol **Coba lagi**, bukan membuat seluruh aplikasi kosong.
+- Catatan, tugas, rapat, dan kuliah yang datang tanpa sebagian kolom (dari sinkron, bot, asisten AI, atau versi lama) tidak lagi membuat halamannya gagal tampil.
 - Installer menawarkan untuk mencopot salinan Ruangku lama yang dipasang lewat `.msi`, karena dua salinan bisa membuat aplikasi tidak mau terbuka.
 - Rapat berulang dari data demo tidak lagi tertinggal setelah data demo dihapus; sisa dari versi sebelumnya dibersihkan otomatis.
 

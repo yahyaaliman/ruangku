@@ -6,14 +6,14 @@
 // menghapus pertemuan kuliah = kelas batal (presensi tidak dihitung).
 import { useEffect, useRef } from "react";
 import { api, onEvent } from "./api";
-import { dataOf, type Item, type TimeBlock } from "./types";
+import { itemOf, type Item, type TimeBlock } from "./types";
 import { MEETING_KIND, SERIES_KIND, planSeries, reconcileMeetings, type Meeting, type MeetingSeries } from "./meetings";
 import { COURSE_KIND, planCourseBlocks, type Course } from "./courses";
 import { builtinHolidays } from "./holidays";
 import { dateKey } from "./date";
 import { dueRecurring, LEDGER_KIND, markRecurring, postRecurring, RECURRING_KIND, recurringTxId, type Recurring } from "./finance";
 
-const load = async <T>(kind: string): Promise<Item<T>[]> => (await api.list(kind)).map((r) => ({ ...dataOf<T>(r.data), id: r.id, updatedAt: r.updatedAt }));
+const load = async <T>(kind: string): Promise<Item<T>[]> => (await api.list(kind)).map((r) => itemOf<T>(r));
 const strip = <T>(x: Item<T>): T => {
   const { id: _i, updatedAt: _u, ...rest } = x as Item<T> & Record<string, unknown>;
   void _i;

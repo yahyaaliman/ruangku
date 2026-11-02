@@ -62,6 +62,14 @@ i.pm-lg { width: 14px; height: 14px; margin: 0 6px; }
 .page-loading-msg { display: flex; align-items: center; gap: 8px; }
 .page-loading-help { margin-top: 10px; max-width: 60ch; color: var(--ink-2); font-size: 13px; }
 
+/* ---------- Halaman yang gagal tampil ---------- */
+.err-box { display: flex; gap: 14px; align-items: flex-start; padding: 18px 20px; border-radius: var(--r); background: var(--bata-soft); color: var(--ink); max-width: 720px; }
+.err-box > svg { flex: none; color: var(--bata); margin-top: 3px; }
+.err-box h2 { font-size: 17px; margin-bottom: 6px; }
+.err-box p { color: var(--ink-2); margin-bottom: 10px; }
+.err-msg { display: block; margin-bottom: 14px; padding: 8px 10px; border-radius: var(--r-sm); background: var(--panel); font-size: 12px; white-space: pre-wrap; word-break: break-word; }
+.err-compact { align-items: center; gap: 8px; padding: 10px 12px; font-size: 13px; }
+
 /* ---------- Formulir proyek ---------- */
 .pf-name { display: grid; grid-template-columns: 72px 1fr; gap: 10px; align-items: end; }
 .pf-icon { font-size: 18px; height: 37px; padding: 0 6px; }

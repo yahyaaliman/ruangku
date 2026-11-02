@@ -2,10 +2,10 @@
 // Mengikuti aturan yang sama dengan halaman Tugas: waktu selesai, pengulangan,
 // kenaikan key result, dan antrean pesan penugasan.
 import { api, newId } from "./api";
-import { dataOf, type Item, type KeyResult, type RawRecord } from "./types";
+import { itemOf, type Item, type KeyResult, type RawRecord } from "./types";
 import { firstDoneStatus, firstOpenStatus, INBOX_PROJECT, isTaskDone, newTask, nextOccurrenceTask, Project, projectOf, statusesOf, Task } from "./tasks";
 
-const flat = <T,>(rows: RawRecord[]): Item<T>[] => rows.map((r) => ({ ...dataOf<T>(r.data), id: r.id, updatedAt: r.updatedAt }));
+const flat = <T,>(rows: RawRecord[]): Item<T>[] => rows.map((r) => itemOf<T>(r));
 export async function load<T>(kind: string): Promise<Item<T>[]> {
   return flat<T>(await api.list(kind));
 }

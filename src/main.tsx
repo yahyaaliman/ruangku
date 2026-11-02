@@ -8,11 +8,12 @@ import "./projects/projects.css";
 import "./charts/charts.css";
 import "./ai/assistant.css";
 import "./appearance.css";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { api, isBreak, isCapture, isDesktop, isWidget, stickyId } from "./lib/api";
 import { followTheme } from "./lib/theme";
 import { followAppearance } from "./lib/appearance";
 import { PageLoading } from "./components/Stall";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 // Setiap jendela (aplikasi, widget, sticky note, catat cepat, layar istirahat) hanya memuat kodenya sendiri.
 const App = lazy(() => import("./App"));
@@ -36,8 +37,23 @@ if (!isWidget) {
   followAppearance();
 }
 
+const windowKind = isWidget ? "widget" : stickyId ? "sticky" : isCapture ? "catat-cepat" : isBreak ? "istirahat" : "utama";
+
+/** Memberi tahu backend bahwa isi jendela ini sudah tampil (dipakai uji mandiri dan diagnostik). */
+function Ready() {
+  useEffect(() => {
+    if (isDesktop) void api.windowReady(windowKind);
+  }, []);
+  return null;
+}
+
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    <Suspense fallback={stickyId || isBreak || isCapture || isWidget ? null : <PageLoading />}>{stickyId ? <Sticky id={stickyId} /> : isBreak ? <BreakScreen /> : isCapture ? <Capture /> : isWidget ? <Widget /> : <App />}</Suspense>
+    <ErrorBoundary where={windowKind} compact={windowKind !== "utama"}>
+      <Suspense fallback={stickyId || isBreak || isCapture || isWidget ? null : <PageLoading />}>
+        {stickyId ? <Sticky id={stickyId} /> : isBreak ? <BreakScreen /> : isCapture ? <Capture /> : isWidget ? <Widget /> : <App />}
+        <Ready />
+      </Suspense>
+    </ErrorBoundary>
   </React.StrictMode>,
 );

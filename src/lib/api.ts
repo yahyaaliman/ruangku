@@ -145,6 +145,11 @@ export const api = {
   notifySend: (title: string, body: string) => call<void>("notify_send", { title, body }),
   captureHide: () => call<void>("capture_hide"),
   captureOpen: () => call<void>("capture_open"),
+  breakAction: (action: "start" | "skip" | "snooze" | "done") => call<void>("break_action", { action }),
+  windowReady: (kind: string) => call<void>("window_ready", { kind }).catch(() => {}),
+  windowsReady: () => call<string[]>("windows_ready"),
+  selftestPhase: () => call<string | null>("selftest_phase"),
+  selftestReport: (text: string) => call<void>("selftest_report", { text }),
 
   widgetConfig: () => call<WidgetConfig>("widget_config"),
   widgetSetVisible: (visible: boolean) => call<WidgetConfig>("widget_set_visible", { visible }),
