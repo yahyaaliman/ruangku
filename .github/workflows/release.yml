@@ -1,0 +1,157 @@
+# Rilis: berjalan saat tag versi (v*) dibuat, misalnya lewat "Draft a new release" di GitHub.
+# Bisa juga dijalankan manual (Actions → Rilis → Run workflow) sebagai uji coba: semua langkah
+# berjalan, tetapi tidak ada yang diterbitkan.
+#
+# Tag harus sama dengan versi aplikasi (v<versi di package.json>). Installer dibuat dari tag itu,
+# ditandatangani bila sertifikat diatur, lalu harus lulus uji dan uji asap Windows yang sama
+# dengan CI sebelum diterbitkan bersama .msi, SHA256SUMS.txt, catatan rilis dari CHANGELOG.md,
+# dan attestation asal-usul build (`gh attestation verify <file> -R yahyaaliman/ruangku`).
+#
+# Secret/variable opsional (Settings → Secrets and variables → Actions):
+# - Tanda tangan kode: WINDOWS_SIGN_COMMAND (alat cloud HSM, %1 = path file; kredensial di
+#   AZURE_* atau SIGN_*), atau WINDOWS_CERT_PFX (base64) + WINDOWS_CERT_PASSWORD.
+# - Pembaruan di dalam aplikasi: variable RUANGKU_UPDATER_PUBLIC_KEY + secret
+#   TAURI_SIGNING_PRIVATE_KEY (+ _PASSWORD). Tanpa kunci, rilis terbit tanpa latest.json.
+# - Pemindaian VirusTotal: VIRUSTOTAL_API_KEY (gratis).
+# Rincian: docs/instalasi-windows.md dan docs/integrasi-dan-keamanan.md.
+name: Rilis
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch: # uji coba tanpa menerbitkan
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build, uji, dan terbitkan
+    runs-on: windows-latest
+    timeout-minutes: 75
+    permissions:
+      contents: write # menerbitkan GitHub Release
+      id-token: write # attestation asal-usul build
+      attestations: write
+    env:
+      RUANGKU_UPDATER_PUBLIC_KEY: ${{ vars.RUANGKU_UPDATER_PUBLIC_KEY }}
+      BUNDLE: src-tauri/target/release/bundle
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Tag sama dengan versi aplikasi
+        shell: pwsh
+        run: ./scripts/ci/check-version.ps1
+
+      - uses: ./.github/actions/setup
+
+      - name: Uji frontend
+        run: npm test -- --maxWorkers=4
+
+      - name: Uji backend
+        run: cargo test --locked --manifest-path src-tauri/Cargo.toml
+
+      - name: Siapkan tanda tangan kode (bila diatur)
+        shell: pwsh
+        env:
+          SIGN_COMMAND: ${{ secrets.WINDOWS_SIGN_COMMAND }}
+          CERT: ${{ secrets.WINDOWS_CERT_PFX }}
+          CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
+        run: ./scripts/ci/sign-setup.ps1
+
+      - name: Build installer
+        shell: pwsh
+        env:
+          # Kredensial untuk alat penanda tangan pilihan (kosong bila tidak dipakai).
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          SIGN_USERNAME: ${{ secrets.SIGN_USERNAME }}
+          SIGN_PASSWORD: ${{ secrets.SIGN_PASSWORD }}
+          SIGN_CREDENTIAL_ID: ${{ secrets.SIGN_CREDENTIAL_ID }}
+          SIGN_TOTP_SECRET: ${{ secrets.SIGN_TOTP_SECRET }}
+        run: |
+          if ($env:TAURI_SIGN_ARGS) { npx tauri build $env:TAURI_SIGN_ARGS.Split(' ', 2) } else { npx tauri build }
+          if ($LASTEXITCODE -ne 0) { throw 'Build gagal' }
+          Remove-Item (Join-Path $env:RUNNER_TEMP 'ruangku.pfx') -Force -ErrorAction SilentlyContinue
+
+      - name: Periksa tanda tangan
+        if: env.SIGNED == 'true'
+        shell: pwsh
+        run: ./scripts/ci/verify-signatures.ps1
+
+      - name: Uji asap Windows
+        timeout-minutes: 20
+        shell: pwsh
+        run: ./scripts/ci/smoke-test.ps1
+
+      - name: Simpan hasil uji asap
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: Ruangku-uji-asap-windows
+          if-no-files-found: ignore
+          path: ${{ runner.temp }}/uji-asap
+
+      - name: Pindai antivirus
+        shell: pwsh
+        env:
+          VT_KEY: ${{ secrets.VIRUSTOTAL_API_KEY }}
+        run: ./scripts/ci/scan.ps1
+
+      - name: Tanda tangan updater dan latest.json (bila kunci diatur)
+        shell: pwsh
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          if (-not $env:RUANGKU_UPDATER_PUBLIC_KEY -or -not $env:TAURI_SIGNING_PRIVATE_KEY) {
+            Write-Host '::warning title=Pembaruan otomatis belum aktif::Kunci updater belum diatur; rilis terbit tanpa latest.json. Pengguna memperbarui dengan mengunduh installer baru.'
+            exit 0
+          }
+          node scripts/updater-manifest.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Gagal membuat manifest updater' }
+
+      - name: Checksum dan catatan rilis
+        shell: pwsh
+        run: ./scripts/ci/release-notes.ps1
+
+      - name: Attestation asal-usul build
+        if: github.ref_type == 'tag' && github.event.repository.visibility == 'public'
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            src-tauri/target/release/bundle/nsis/*.exe
+            src-tauri/target/release/bundle/msi/*.msi
+
+      - name: Simpan berkas rilis
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: Ruangku-rilis-${{ env.VERSION }}
+          if-no-files-found: error
+          path: |
+            src-tauri/target/release/bundle/nsis/*.exe
+            src-tauri/target/release/bundle/msi/*.msi
+            src-tauri/target/release/bundle/nsis/*.sig
+            src-tauri/target/release/bundle/latest.json
+            src-tauri/target/release/bundle/SHA256SUMS.txt
+
+      - name: Terbitkan rilis
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+        with:
+          name: Ruangku ${{ env.VERSION }}
+          body_path: ${{ runner.temp }}/release-notes.md
+          fail_on_unmatched_files: false
+          files: |
+            src-tauri/target/release/bundle/nsis/*.exe
+            src-tauri/target/release/bundle/msi/*.msi
+            src-tauri/target/release/bundle/nsis/*.sig
+            src-tauri/target/release/bundle/latest.json
+            src-tauri/target/release/bundle/SHA256SUMS.txt

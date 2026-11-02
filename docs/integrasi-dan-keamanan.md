@@ -18,7 +18,7 @@ Untuk pengelola rilis:
 2. Di pengaturan Actions repo, simpan isi kunci publik sebagai **variable** `RUANGKU_UPDATER_PUBLIC_KEY`.
 3. Simpan isi kunci privat sebagai **secret** `TAURI_SIGNING_PRIVATE_KEY` dan kata sandinya sebagai `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` (kosong jika kunci dibuat tanpa kata sandi).
 4. Samakan versi `package.json`, `package-lock.json`, `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock`, dan `src-tauri/tauri.conf.json`; gunakan tag `v<versi>` yang sama.
-5. Workflow Windows menandatangani installer NSIS final setelah langkah Authenticode opsional, lalu menerbitkan installer, `.sig`, dan `latest.json`. Signature juga mengikat nomor versi (`requireSignedVersion`). Jangan mengubah installer setelah ditandatangani.
+5. Workflow **Rilis** menandatangani installer NSIS final setelah langkah Authenticode opsional, lalu menerbitkan installer, `.sig`, dan `latest.json`. Signature juga mengikat nomor versi (`requireSignedVersion`). Jangan mengubah installer setelah ditandatangani.
 6. Distribusikan satu installer awal yang sudah memuat kunci publik. Build lama tanpa kunci publik tetap dapat menggunakan unduhan manual; build tersebut tidak otomatis memperoleh kepercayaan terhadap kunci baru.
 
 Endpoint aplikasi: `https://github.com/yahyaaliman/ruangku/releases/latest/download/latest.json`. Tanda tangan updater berbeda dari sertifikat Windows Authenticode. Bila pasangan kunci belum dikonfigurasi, rilis tag tetap terbit (installer, `.msi`, dan `SHA256SUMS.txt`) tetapi tanpa `latest.json`, dan build tersebut tidak memuat kunci publik sehingga pembaruan di dalam aplikasi belum aktif. Alur rilis dengan kunci produksi perlu diuji sebelum dipakai umum.
@@ -89,7 +89,7 @@ Enkripsi berlaku pada isi snapshot sinkronisasi. Database lokal, backup, ekspor,
 
 - `npm ci`, `npm test -- --maxWorkers=4`, `npm run build`.
 - `cargo test --locked --manifest-path src-tauri/Cargo.toml` pada Windows dengan MSVC.
-- `PB_TEST_BIN=<path-pocketbase> node server/run-access-test.mjs` (database sementara, hanya loopback). Workflow PR menjalankannya otomatis.
+- `PB_TEST_BIN=<path-pocketbase> node server/run-access-test.mjs` (database sementara, hanya loopback). Workflow **CI** menjalankannya otomatis di setiap pull request dan push ke `main`.
 - Pada installer Windows: coba Selesai/Tunda, termasuk seri berulang; pratinjau gambar/PDF/teks; login dan putus koneksi Google/Microsoft; konflik/hapus/offline; migrasi snapshot dua perangkat; dan instal pembaruan bertanda tangan, termasuk penolakan installer/signature/versi yang diubah.
 
 Pemeriksaan akun OAuth nyata, instalasi updater produksi, dan tampilan native tetap membutuhkan konfigurasi serta uji manual tersebut sebelum rilis umum.

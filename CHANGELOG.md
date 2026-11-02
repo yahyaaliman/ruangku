@@ -4,6 +4,10 @@ Semua perubahan penting pada Ruangku dicatat di sini. Format mengikuti [Keep a C
 
 ## [Belum dirilis]
 
+### Distribusi
+
+- Workflow GitHub Actions dirapikan menjadi **CI** (pull request dan push ke `main`: uji dan uji asap Windows berjalan bersamaan, run lama dibatalkan otomatis, perubahan dokumentasi saja tidak memicu build) dan **Rilis** (tag `v<versi>`: memeriksa tag sama dengan versi aplikasi sebelum menerbitkan).
+
 ## [1.0.0] - 2026-11-02
 
 Rilis stabil pertama Ruangku untuk Windows 10 dan 11.

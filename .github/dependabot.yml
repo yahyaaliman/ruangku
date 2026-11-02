@@ -1,0 +1,13 @@
+# Usulan pembaruan versi GitHub Action (tetap dikunci ke commit SHA) sebulan sekali, digabung
+# dalam satu pull request. CI menguji usulan itu sebelum digabung.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directories: ["/", "/.github/actions/setup"]
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: "CI"

@@ -7,7 +7,7 @@
 **Satu ruang kerja di desktop Windows untuk tugas, jadwal, catatan, keuangan, dan ibadah.**
 Data tersimpan di komputer Anda sendiri dan tetap bisa dipakai tanpa internet.
 
-[![Build Windows](https://github.com/yahyaaliman/ruangku/actions/workflows/build-windows.yml/badge.svg?branch=main)](https://github.com/yahyaaliman/ruangku/actions/workflows/build-windows.yml)
+[![CI](https://github.com/yahyaaliman/ruangku/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/yahyaaliman/ruangku/actions/workflows/ci.yml)
 [![Rilis terbaru](https://img.shields.io/github/v/release/yahyaaliman/ruangku?label=rilis&color=3b4cca)](https://github.com/yahyaaliman/ruangku/releases/latest)
 ![Windows 10 | 11](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4?logo=windows&logoColor=white)
 ![Tauri 2](https://img.shields.io/badge/Tauri-2-24C8DB?logo=tauri&logoColor=white)
@@ -150,18 +150,20 @@ Penjelasan lengkap ada di [docs/arsitektur.md](docs/arsitektur.md).
 
 ## Rilis
 
-Setiap push ke `main` menjalankan workflow **Build Windows** di GitHub Actions:
+Dua workflow GitHub Actions mengurus pengujian dan rilis:
 
-1. Uji frontend dan backend.
-2. Build installer `.exe` (NSIS) dan `.msi`, ditandatangani bila sertifikat sudah diatur.
-3. **Uji asap di Windows sungguhan**: memasang installer, membuka semua halaman serta widget, sticky note, catat cepat, dan layar istirahat sambil memastikan aplikasi tetap menjawab, menutup paksa lalu membuka lagi, memasang ulang saat aplikasi berjalan, dan mencopot.
-4. Pemindaian antivirus (bila tersedia), checksum SHA-256, dan attestation asal-usul build.
+| Workflow | Kapan berjalan | Isi |
+| --- | --- | --- |
+| [**CI**](.github/workflows/ci.yml) | Setiap pull request dan push ke `main` (perubahan yang hanya menyentuh dokumentasi dilewati) | Dua job bersamaan: **Uji** (frontend, izin proyek di PocketBase, backend) dan **Installer & uji asap Windows** (build lalu pasang, buka semua halaman serta widget, sticky note, catat cepat, dan layar istirahat, tutup paksa, pasang ulang, copot). Installer bisa diunduh dari bagian *Artifacts* halaman run. |
+| [**Rilis**](.github/workflows/release.yml) | Saat tag `v<versi>` dibuat | Memastikan tag sama dengan versi aplikasi, menguji, membuat dan menandatangani installer (bila sertifikat diatur), uji asap, pemindaian antivirus, checksum, attestation, lalu menerbitkan rilis dengan catatan dari CHANGELOG. Bisa dijalankan manual dari tab Actions sebagai uji coba tanpa menerbitkan. |
 
-Installer dari setiap run bisa diunduh di bagian *Artifacts* halaman run. Untuk rilis publik:
+Langkah-langkah PowerShell keduanya ada di [`scripts/ci/`](scripts/ci), dan persiapan Node/Rust bersama ada di [`.github/actions/setup`](.github/actions/setup/action.yml). Dependabot mengusulkan pembaruan versi Action sebulan sekali.
+
+Untuk rilis publik:
 
 1. Samakan versi di `package.json`, `package-lock.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`, dan `src-tauri/Cargo.lock` (uji otomatis menolak versi yang berbeda), lalu catat perubahannya di [CHANGELOG.md](CHANGELOG.md).
-2. Push ke `main` dan tunggu **Build Windows** hijau.
-3. Buat tag `v<versi>`, misalnya lewat **Releases → Draft a new release** di GitHub atau `git tag v1.0.0 && git push origin v1.0.0`. Workflow menerbitkan installer, `.msi`, `SHA256SUMS.txt`, dan catatan rilis.
+2. Push ke `main` dan tunggu **CI** hijau.
+3. Buat tag `v<versi>`, misalnya lewat **Releases → Draft a new release** di GitHub atau `git tag v1.0.0 && git push origin v1.0.0`. Workflow **Rilis** menerbitkan installer, `.msi`, `SHA256SUMS.txt`, dan catatan rilis dalam sekitar 15 menit.
 
 ## Keamanan
 

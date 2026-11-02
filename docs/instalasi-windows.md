@@ -48,14 +48,16 @@ Selama installer belum bertanda tangan kode (Authenticode), SmartScreen menampil
 ### Membuat rilis
 
 1. Naikkan versi di `package.json`, `package-lock.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`, dan `src-tauri/Cargo.lock` (uji `src/lib/version.test.ts` gagal bila berbeda), lalu catat perubahannya di `CHANGELOG.md`.
-2. Push ke `main`, lalu tunggu **Build Windows** hijau.
-3. Buat tag `v<versi>`: lewat **Releases → Draft a new release → Choose a tag** di GitHub, atau `git tag v<versi> && git push origin v<versi>`. Workflow menerbitkan installer, `.msi`, `SHA256SUMS.txt`, dan catatan rilis. Bila kunci updater sudah diatur, `latest.json` juga ikut terbit untuk pembaruan di dalam aplikasi (lihat [integrasi-dan-keamanan.md](integrasi-dan-keamanan.md)).
+2. Push ke `main`, lalu tunggu workflow **CI** hijau.
+3. Buat tag `v<versi>`: lewat **Releases → Draft a new release → Choose a tag** di GitHub, atau `git tag v<versi> && git push origin v<versi>`. Workflow **Rilis** memeriksa bahwa tag sama dengan versi aplikasi, lalu menerbitkan installer, `.msi`, `SHA256SUMS.txt`, dan catatan rilis. Bila kunci updater sudah diatur, `latest.json` juga ikut terbit untuk pembaruan di dalam aplikasi (lihat [integrasi-dan-keamanan.md](integrasi-dan-keamanan.md)).
+
+Sebelum rilis besar, alur rilis bisa diuji coba dari **Actions → Rilis → Run workflow** (branch `main`): semua langkah berjalan, tetapi tidak ada yang diterbitkan.
 
 ### Pengamanan build yang sudah aktif
 
 - Semua GitHub Action dikunci ke commit SHA, dan token workflow memakai hak minimum.
 - Uji frontend dan backend wajib lulus sebelum installer dibuat.
-- **Uji asap di Windows sungguhan** (`scripts/smoke-windows.mjs`) wajib lulus sebelum installer diunggah atau dirilis: memasang `.msi` lama lalu installer baru dengan `/S /REMOVEMSI`, membuka semua halaman dan jendela tambahan sambil memastikan aplikasi tetap menjawab, menutup paksa lalu membuka lagi, membuka salinan kedua, memasang ulang saat aplikasi berjalan, lalu mencopot dan memastikan data tetap ada. Hasilnya tampil di ringkasan run dan sebagai artifact `Ruangku-uji-asap-windows`.
+- **Uji asap di Windows sungguhan** (`scripts/smoke-windows.mjs`) wajib lulus sebelum installer diunggah atau dirilis: memasang `.msi` lama lalu installer baru dengan `/S /REMOVEMSI`, membuka semua halaman dan jendela tambahan sambil memastikan aplikasi tetap menjawab, menutup paksa lalu membuka lagi, membuka salinan kedua, memasang ulang saat aplikasi berjalan, lalu mencopot dan memastikan data tetap ada. Uji asap berjalan di workflow **CI** (setiap pull request dan push ke `main`) dan di workflow **Rilis**. Hasilnya tampil di ringkasan run dan sebagai artifact `Ruangku-uji-asap-windows`.
 - Installer dipindai Windows Defender bila layanan itu aktif di runner GitHub (biasanya dimatikan di sana), dan dipindai VirusTotal (70+ antivirus) bila secret `VIRUSTOTAL_API_KEY` diisi. Kunci API-nya gratis dari akun [VirusTotal](https://www.virustotal.com). Hasilnya tercantum di catatan rilis. Build gagal bila Defender menemukan ancaman.
 - Checksum SHA-256 dan attestation build provenance (untuk repo publik) diterbitkan.
 - Installer per pengguna, tanpa hak admin, dengan konten aplikasi yang dibatasi CSP.

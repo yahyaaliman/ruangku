@@ -1,0 +1,85 @@
+# CI: setiap pull request ke main dan setiap push ke main.
+#
+#   uji        Uji frontend (Vitest), izin proyek di PocketBase, dan uji backend (cargo test).
+#   installer  Build installer lalu uji asap di Windows sungguhan (scripts/smoke-windows.mjs):
+#              pasang di atas salinan .msi lama, buka semua halaman, widget, sticky note, catat
+#              cepat, dan layar istirahat, tutup paksa, pasang ulang, copot. Installer hasil build
+#              bisa diunduh dari bagian "Artifacts" halaman run.
+#
+# Kedua job berjalan bersamaan. Run lama untuk branch/PR yang sama dibatalkan saat ada push baru,
+# dan perubahan yang hanya menyentuh dokumentasi tidak memicu CI.
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["**.md", "docs/**", ".github/ISSUE_TEMPLATE/**", ".github/dependabot.yml"]
+  pull_request:
+    branches: [main]
+    paths-ignore: ["**.md", "docs/**", ".github/ISSUE_TEMPLATE/**", ".github/dependabot.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Uji
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup
+
+      - name: Uji frontend
+        run: npm test -- --maxWorkers=4
+
+      - name: Uji izin proyek di PocketBase
+        shell: pwsh
+        run: ./scripts/ci/pocketbase-access-test.ps1
+
+      - name: Uji backend
+        run: cargo test --locked --manifest-path src-tauri/Cargo.toml
+
+  installer:
+    name: Installer & uji asap Windows
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup
+
+      - name: Build installer
+        run: npx tauri build
+
+      - name: Uji asap Windows
+        timeout-minutes: 20
+        shell: pwsh
+        run: ./scripts/ci/smoke-test.ps1
+
+      - name: Simpan hasil uji asap
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: Ruangku-uji-asap-windows
+          if-no-files-found: ignore
+          path: ${{ runner.temp }}/uji-asap
+
+      - name: Simpan installer
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: Ruangku-Windows-installer
+          if-no-files-found: error
+          path: |
+            src-tauri/target/release/bundle/nsis/*.exe
+            src-tauri/target/release/bundle/msi/*.msi

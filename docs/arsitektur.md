@@ -96,7 +96,9 @@ src-tauri/src/           Backend Rust
 server/                  Skema & hook PocketBase untuk kolaborasi tim
 scripts/                 smoke-windows.mjs (uji asap di Windows), updater-manifest.mjs (latest.json)
 docs/                    Dokumentasi, panduan, gambar README
-.github/workflows/       Build installer Windows + uji asap, validasi perubahan
+.github/workflows/       ci.yml (uji + installer & uji asap Windows), release.yml (rilis dari tag)
+.github/actions/setup/   Persiapan Node.js, Rust, dan dependensi yang dipakai kedua workflow
+scripts/ci/              Langkah PowerShell workflow: tanda tangan, uji asap, pemindaian, catatan rilis
 ```
 
 Semua data aplikasi disimpan di satu tabel `records (id, kind, data JSON, updated_at, deleted)`. Jenis data: `reminder`, `objective`, `keyresult`, `kpi`, `kpientry` (id = `<kpiId>:<YYYY-MM-DD>`), `note` (catatan harian punya field `date`), `timeblock` (`date`, `start`/`end` dalam menit, `notify`), `ibadahconfig`, `ibadahlog` (id = `ibadah:<tanggal>`), `review` (id = `day:`/`week:`/`month:` + kunci periode), `notifconfig`, `project`, `task`, `automation`, `timer`, `workconfig`, `projecttemplate`, `daytemplate`, `filemeta`, `member`, `workspace`, `outbox` (antrean penugasan bot), `breaklog`, `calsub` (kalender luar), `comment`, `ledger`, `reference` (pustaka), `meeting`, `meetingseries`, `course`, `account`, `budget`, `recurring`, `trash`. Setiap `data` menyimpan `_ft` (waktu ubah per kolom) untuk penggabungan per kolom. Proyek punya `parentId`, `start`/`end`, `milestones`, `folder`, `workspaceId`; tugas, blok, reminder, OKR, KPI, catatan, dan tag file punya `projectId`; tugas punya `assignees` dan `custom` (nilai kolom kustom); proyek punya `fields`. Catatan punya `parentId`, `icon`, `isTemplate`, `sticky`; blok waktu punya `taskId` dan `tracked`. Data demo bertanda `demo: true`. Menambah modul baru cukup dengan `kind` baru tanpa mengubah skema.
