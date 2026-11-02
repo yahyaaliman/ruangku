@@ -89,7 +89,7 @@ jobs:
             $signtool = (Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" | Sort-Object FullName -Descending | Select-Object -First 1).FullName
             $sign = @{ cmd = $signtool; args = @("sign", "/f", $pfx, "/p", $env:CERT_PASSWORD, "/fd", "sha256", "/tr", "http://timestamp.digicert.com", "/td", "sha256", "/d", "Ruangku", "%1") }
           } else {
-            Write-Host "::warning title=Installer belum bertanda tangan::Windows akan menampilkan peringatan SmartScreen (Unknown publisher). Lihat INSTALLER-WINDOWS.md untuk mengaktifkan tanda tangan kode."
+            Write-Host "::warning title=Installer belum bertanda tangan::Windows akan menampilkan peringatan SmartScreen (Unknown publisher). Lihat docs/instalasi-windows.md untuk mengaktifkan tanda tangan kode."
             "TAURI_SIGN_ARGS=" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
             exit 0
           }
@@ -130,11 +130,12 @@ jobs:
         timeout-minutes: 20
         shell: pwsh
         run: |
-          # Memasang installer yang baru dibuat, membuka setiap halaman dan setiap jenis jendela
+          # Memasang .msi lama lalu installer baru (yang harus mencopot .msi itu), membuka setiap halaman dan setiap jenis jendela
           # (widget, sticky note, catat cepat, layar istirahat), menutup paksa lalu membuka lagi,
           # memasang ulang saat aplikasi berjalan, lalu mencopot. Build gagal bila ada yang macet.
           $setup = (Get-ChildItem "$env:BUNDLE/nsis/*-setup.exe" | Select-Object -First 1).FullName
-          node scripts/smoke-windows.mjs $setup "$env:RUNNER_TEMP/uji-asap"
+          $msi = (Get-ChildItem "$env:BUNDLE/msi/*.msi" | Select-Object -First 1).FullName
+          node scripts/smoke-windows.mjs $setup "$env:RUNNER_TEMP/uji-asap" $msi
           if ($LASTEXITCODE -ne 0) { throw "Uji asap Windows gagal" }
 
       - name: Simpan hasil uji asap

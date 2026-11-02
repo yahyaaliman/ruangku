@@ -11,14 +11,18 @@
 //   - mencopot, memastikan data pengguna tidak ikut terhapus.
 // Gagal bila ada langkah yang macet, galat JavaScript, atau baris "BUG:"/"PANIC" di log aplikasi.
 //
-// Pemakaian: node scripts/smoke-windows.mjs <path ke Ruangku_x.y.z_x64-setup.exe> [folder keluaran]
+// Pemakaian: node scripts/smoke-windows.mjs <Ruangku_x.y.z_x64-setup.exe> [folder keluaran] [Ruangku_x.y.z_x64.msi]
+// Bila .msi diberikan, uji dimulai dengan salinan .msi lama yang sedang berjalan, lalu installer
+// baru (/S /REMOVEMSI) harus menutup dan mencopotnya.
 
 import { spawn, execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, openSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const setup = process.argv[2];
 const outDir = process.argv[3] || "smoke-output";
+const msi = process.argv[4];
+const MSI_EXE = join(process.env.ProgramFiles || "C:\\Program Files", "Ruangku", "ruangku.exe");
 const PORT = 9229;
 const LOCAL = process.env.LOCALAPPDATA;
 const DATA = join(process.env.APPDATA, "com.ruangku.app");
@@ -190,13 +194,40 @@ async function killApp() {
   await sleep(1500);
 }
 
+function sh(cmd, args) {
+  try {
+    return execFileSync(cmd, args, { encoding: "utf8", timeout: 30000, stdio: ["ignore", "pipe", "pipe"] });
+  } catch (e) {
+    return `${e.stdout ?? ""}${e.stderr ?? ""}` || e.message;
+  }
+}
+
+/** Keadaan proses, WebView2, jendela, dan log saat sebuah langkah gagal. */
+function diag(label, outFile) {
+  console.log(`----- Diagnostik: ${label}`);
+  console.log(sh("tasklist", ["/FI", "IMAGENAME eq ruangku.exe"]).trim());
+  console.log(sh("tasklist", ["/FI", "IMAGENAME eq msedgewebview2.exe"]).trim().split(/\r?\n/).slice(0, 6).join("\n"));
+  for (const key of ["HKLM\\SOFTWARE\\WOW6432Node\\Microsoft\\EdgeUpdate\\Clients\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}", "HKCU\\SOFTWARE\\Microsoft\\EdgeUpdate\\Clients\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"]) {
+    console.log(`WebView2 ${key.split("\\")[0]}: ${sh("reg", ["query", key, "/v", "pv"]).trim().split(/\r?\n/).pop()}`);
+  }
+  console.log(sh("powershell", ["-NoProfile", "-Command", "Get-Process ruangku,msedgewebview2 -ErrorAction SilentlyContinue | Select-Object ProcessName,Id,SessionId,Responding,MainWindowTitle | Format-Table -AutoSize | Out-String -Width 200"]).trim());
+  if (outFile && existsSync(outFile)) console.log(`stdout/stderr Ruangku:\n${readFileSync(outFile, "utf8").slice(-3000)}`);
+  if (existsSync(LOG)) console.log(`Log Ruangku:\n${readFileSync(LOG, "utf8").split(/\r?\n/).slice(-30).join("\n")}`);
+  console.log("-----");
+}
+
 let main = null;
+let launches = 0;
 
 async function launch(label) {
   if (main) main.close();
   main = null;
   const env = { ...process.env, WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${PORT} --remote-allow-origins=*` };
-  spawn(EXE, [], { env, detached: true, stdio: "ignore" }).unref();
+  const outFile = join(outDir, `ruangku-keluaran-${++launches}.txt`);
+  const fd = openSync(outFile, "a");
+  const child = spawn(EXE, [], { env, detached: true, stdio: ["ignore", fd, fd] });
+  child.on("exit", (code) => log(`ruangku.exe (${label}) keluar dengan kode ${code}`));
+  child.unref();
   const t = await waitFor(async () => {
     for (const x of await targets()) {
       const c = new Cdp(x.webSocketDebuggerUrl);
@@ -209,7 +240,10 @@ async function launch(label) {
       c.close();
     }
     return null;
-  }, 90000, `${label}: jendela utama tampil`);
+  }, 90000, `${label}: jendela utama tampil`).catch((e) => {
+    diag(label, outFile);
+    throw e;
+  });
   main = t;
   await main.send("Runtime.enable");
   await main.send("Page.enable");
@@ -233,9 +267,9 @@ async function go(page) {
   );
 }
 
-function install(label) {
+function install(label, extra = []) {
   return new Promise((resolve, reject) => {
-    const p = spawn(setup, ["/S"], { stdio: "ignore" });
+    const p = spawn(setup, ["/S", ...extra], { stdio: "ignore" });
     const t = setTimeout(() => {
       p.kill();
       reject(new Error(`${label}: installer tidak selesai dalam 180 detik`));
@@ -255,7 +289,23 @@ if (!setup || !existsSync(setup)) {
   process.exit(2);
 }
 
-await step("Pasang installer (diam-diam)", () => install("Pasang"));
+if (msi && existsSync(msi)) {
+  await step("Siapkan salinan .msi lama yang sedang berjalan", async () => {
+    const code = await withTimeout(new Promise((r) => spawn("msiexec", ["/i", msi, "/qn", "/norestart"], { stdio: "ignore" }).on("exit", r)), 300000, "msiexec /i");
+    if (code !== 0 && code !== 3010) throw new Error(`msiexec /i keluar dengan kode ${code}`);
+    if (!existsSync(MSI_EXE)) throw new Error(`${MSI_EXE} tidak ada`);
+    spawn(MSI_EXE, [], { detached: true, stdio: "ignore" }).unref();
+    await waitFor(running, 30000, "salinan .msi berjalan");
+    await sleep(5000);
+  });
+  await step("Pasang installer: salinan .msi lama ditutup dan dicopot", async () => {
+    const r = await install("Pasang", ["/REMOVEMSI"]);
+    await waitFor(() => !existsSync(MSI_EXE), 120000, "salinan .msi terhapus");
+    return r;
+  });
+} else {
+  await step("Pasang installer (diam-diam)", () => install("Pasang"));
+}
 await killApp(); // installer tidak menjalankan aplikasi dalam mode diam, tetapi pastikan bersih.
 
 await step("Start pertama: jendela utama tampil", async () => {
@@ -391,5 +441,6 @@ const lines = [
 writeFileSync(join(outDir, "laporan.md"), lines.join("\n"), "utf8");
 if (process.env.GITHUB_STEP_SUMMARY) writeFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join("\n") + "\n", { flag: "a" });
 console.log("\n" + lines.slice(0, results.length + 6).join("\n"));
+console.log(`\nLog Ruangku:\n${logText.trim().split(/\r?\n/).slice(-40).join("\n")}`);
 for (const p of problems) console.log(`::error title=Uji asap Windows::${p.replace(/\r?\n/g, " ")}`);
 process.exit(problems.length ? 1 : 0);

@@ -179,7 +179,16 @@ export function SecurityUpdateSettings() {
     api.getSetting(UPDATE_REPO_KEY).then((r) => setRepo(updateRepo(r)));
   }, []);
 
+  const disableIfEmpty = async () => {
+    if (repo.trim()) return false;
+    await api.setSetting(UPDATE_REPO_KEY, "");
+    setRel(null);
+    toast("Pemeriksaan pembaruan dimatikan");
+    return true;
+  };
+
   const check = async () => {
+    if (await disableIfEmpty()) return;
     if (!validRepo(repo)) return toast('Isi repo GitHub dengan format "pemilik/nama-repo"', "error");
     setChecking(true);
     try {
@@ -216,9 +225,9 @@ export function SecurityUpdateSettings() {
         <div className="setting-body">
           <h2>Pembaruan aplikasi</h2>
           <SignedUpdater />
-          <p className="muted">Versi terpasang: <b>{version || "–"}</b>. Isi repo GitHub tempat installer Ruangku dirilis (lihat panduan build di README); Ruangku memeriksanya sekali sehari dan memberi tahu bila ada versi baru.</p>
+          <p className="muted">Versi terpasang: <b>{version || "–"}</b>. Ruangku memeriksa repo GitHub ini sekali sehari dan memberi tahu bila ada versi baru. Kosongkan kolom untuk mematikan pemeriksaan.</p>
           <div className="set-row">
-            <input className="grow" value={repo} onChange={(e) => setRepo(e.target.value)} placeholder="pemilik/ruangku" aria-label="Repo GitHub" />
+            <input className="grow" value={repo} onChange={(e) => setRepo(e.target.value)} onBlur={() => void disableIfEmpty()} placeholder="pemilik/ruangku" aria-label="Repo GitHub" />
             <button className="btn" onClick={check} disabled={checking}>
               <RefreshCw size={15} className={checking ? "spin" : ""} /> Periksa sekarang
             </button>

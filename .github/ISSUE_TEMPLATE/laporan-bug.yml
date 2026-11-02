@@ -1,0 +1,44 @@
+name: Laporan bug
+description: Ada fitur yang tidak berjalan sebagaimana mestinya.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: Terima kasih sudah melapor. Jangan sertakan token, kunci API, atau data pribadi.
+  - type: input
+    id: versi
+    attributes:
+      label: Versi Ruangku
+      description: Lihat Pengaturan → Data & keamanan → Pembaruan aplikasi.
+      placeholder: "1.0.0"
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Versi Windows
+      placeholder: "Windows 11 23H2"
+    validations:
+      required: true
+  - type: textarea
+    id: langkah
+    attributes:
+      label: Langkah untuk memunculkan masalah
+      placeholder: |
+        1. Buka halaman ...
+        2. Klik ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: hasil
+    attributes:
+      label: Yang terjadi dan yang seharusnya terjadi
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Log (opsional)
+      description: Isi `%APPDATA%\com.ruangku.app\logs\ruangku.log` bagian yang relevan, atau salin dari Pengaturan → Data & keamanan → Log & diagnostik.
+      render: text

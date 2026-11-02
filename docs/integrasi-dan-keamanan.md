@@ -1,6 +1,6 @@
 # Fitur Windows, sinkronisasi, dan akses proyek
 
-Fitur-fitur ini dirilis di versi 0.6.0. Pengaturan OAuth dan kunci penandatanganan tidak disertakan dalam kode.
+Fitur-fitur ini tersedia sejak Ruangku 1.0. Pengaturan OAuth dan kunci penandatanganan tidak disertakan dalam kode.
 
 ## Notifikasi Windows
 

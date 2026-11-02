@@ -449,7 +449,7 @@ Kunci API asisten AI, token bot Telegram/WhatsApp, sandi aplikasi Gmail, token s
 
 ### Pembaruan aplikasi
 
-Ruangku memeriksa halaman rilis resmi (`yahyaaliman/ruangku`) sekali sehari dan memberi tahu bila ada versi baru, lengkap dengan catatan rilis dan tombol **Unduh installer**. Repo lain bisa diisi di Pengaturan → **Pembaruan aplikasi**; **Periksa sekarang** untuk mengecek manual. Cara memverifikasi installer (checksum SHA-256 dan attestation) ada di INSTALLER-WINDOWS.md.
+Ruangku memeriksa halaman rilis resmi (`yahyaaliman/ruangku`) sekali sehari dan memberi tahu bila ada versi baru, lengkap dengan catatan rilis dan tombol **Unduh installer**. Repo lain bisa diisi di Pengaturan → **Pembaruan aplikasi**; **Periksa sekarang** untuk mengecek manual. Cara memverifikasi installer (checksum SHA-256 dan attestation) ada di `docs/instalasi-windows.md` di repo GitHub Ruangku.
 
 ### Log & diagnostik
 

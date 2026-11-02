@@ -1,4 +1,4 @@
-// Panduan penggunaan Ruangku (sumber: src/guide/panduan.md, juga disertakan sebagai PANDUAN.md).
+// Panduan penggunaan Ruangku (sumber: src/guide/panduan.md, salinannya docs/panduan.md).
 import { useMemo, useState } from "react";
 import { BookOpen, PlayCircle, Search } from "lucide-react";
 import type { Page } from "../App";

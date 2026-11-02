@@ -1,0 +1,19 @@
+name: Usulan fitur
+description: Ide untuk membuat Ruangku lebih berguna.
+labels: ["usulan"]
+body:
+  - type: textarea
+    id: masalah
+    attributes:
+      label: Masalah yang ingin diselesaikan
+      description: Ceritakan situasinya, bukan hanya solusinya.
+    validations:
+      required: true
+  - type: textarea
+    id: usulan
+    attributes:
+      label: Usulan
+  - type: textarea
+    id: alternatif
+    attributes:
+      label: Cara yang sekarang dipakai (opsional)

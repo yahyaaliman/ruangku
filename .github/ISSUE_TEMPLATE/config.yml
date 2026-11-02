@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Celah keamanan
+    url: https://github.com/yahyaaliman/ruangku/security/policy
+    about: Laporkan celah keamanan secara pribadi, bukan lewat issue publik.
+  - name: Panduan pengguna
+    url: https://github.com/yahyaaliman/ruangku/blob/main/docs/panduan.md
+    about: Cara memakai setiap halaman Ruangku.
