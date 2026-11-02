@@ -128,6 +128,37 @@ pub fn run_protected(conn: &mut Connection, folder: &Path, device_id: &str, devi
     Ok(report)
 }
 
+fn parse_snapshot(text: &str) -> Result<Snapshot, String> {
+    let snapshot: Snapshot = serde_json::from_str(text).map_err(|e| e.to_string())?;
+    if snapshot.format != 1 || snapshot.device_id.is_empty() { return Err("Format snapshot tidak didukung.".into()); }
+    Ok(snapshot)
+}
+fn bounded_text(path: &Path) -> Result<String, String> {
+    use std::io::Read;
+    let mut text = String::new();
+    fs::File::open(path).map_err(|e| e.to_string())?.take(32 * 1024 * 1024 + 1).read_to_string(&mut text).map_err(|e| e.to_string())?;
+    if text.len() > 32 * 1024 * 1024 { return Err("Snapshot terlalu besar.".into()); }
+    Ok(text)
+}
+/// Explicit migration only, while other devices are paused. Already encrypted files
+/// are authenticated and left unchanged, so retrying after interruption is safe.
+pub fn migrate(folder: &Path, password: &str) -> Result<usize, String> {
+    let dir = sync_dir(folder);
+    if !dir.exists() { return Ok(0); }
+    let mut pending = Vec::new();
+    for entry in fs::read_dir(dir).map_err(|e| e.to_string())? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let name = entry.file_name().to_string_lossy().to_string();
+        if !name.starts_with("device-") || !name.ends_with(".json") { continue; }
+        let text = bounded_text(&entry.path())?;
+        if snapshot_crypto::is_encrypted(&text) { parse_snapshot(&snapshot_crypto::decrypt(&text, password)?)?; }
+        else { parse_snapshot(&text)?; pending.push((entry.path(), snapshot_crypto::encrypt(&text, password)?)); }
+    }
+    let count = pending.len();
+    for (path, text) in pending { write_atomic(&path, text.as_bytes()).map_err(|e| e.to_string())?; }
+    Ok(count)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -195,35 +226,4 @@ mod tests {
         run_protected(&mut b, cloud.path(), "B", "B", Some(key)).unwrap();
         assert!(db::get(&b, "secret").unwrap().is_some());
     }
-}
-
-fn parse_snapshot(text: &str) -> Result<Snapshot, String> {
-    let snapshot: Snapshot = serde_json::from_str(text).map_err(|e| e.to_string())?;
-    if snapshot.format != 1 || snapshot.device_id.is_empty() { return Err("Format snapshot tidak didukung.".into()); }
-    Ok(snapshot)
-}
-fn bounded_text(path: &Path) -> Result<String, String> {
-    use std::io::Read;
-    let mut text = String::new();
-    fs::File::open(path).map_err(|e| e.to_string())?.take(32 * 1024 * 1024 + 1).read_to_string(&mut text).map_err(|e| e.to_string())?;
-    if text.len() > 32 * 1024 * 1024 { return Err("Snapshot terlalu besar.".into()); }
-    Ok(text)
-}
-/// Explicit migration only, while other devices are paused. Already encrypted files
-/// are authenticated and left unchanged, so retrying after interruption is safe.
-pub fn migrate(folder: &Path, password: &str) -> Result<usize, String> {
-    let dir = sync_dir(folder);
-    if !dir.exists() { return Ok(0); }
-    let mut pending = Vec::new();
-    for entry in fs::read_dir(dir).map_err(|e| e.to_string())? {
-        let entry = entry.map_err(|e| e.to_string())?;
-        let name = entry.file_name().to_string_lossy().to_string();
-        if !name.starts_with("device-") || !name.ends_with(".json") { continue; }
-        let text = bounded_text(&entry.path())?;
-        if snapshot_crypto::is_encrypted(&text) { parse_snapshot(&snapshot_crypto::decrypt(&text, password)?)?; }
-        else { parse_snapshot(&text)?; pending.push((entry.path(), snapshot_crypto::encrypt(&text, password)?)); }
-    }
-    let count = pending.len();
-    for (path, text) in pending { write_atomic(&path, text.as_bytes()).map_err(|e| e.to_string())?; }
-    Ok(count)
 }

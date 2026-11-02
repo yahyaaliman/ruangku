@@ -532,8 +532,11 @@ fn widget_config(app: AppHandle) -> widget::WidgetConfig {
     widget::load(&app)
 }
 
+// Perintah yang bisa MEMBUAT jendela wajib async: di Windows, membuat jendela WebView2 dari
+// perintah sinkron (utas utama) membuat aplikasi deadlock / "Not responding" (lihat "Known issues"
+// di dokumentasi WebviewWindowBuilder::new).
 #[tauri::command]
-fn widget_set_visible(app: AppHandle, visible: bool) -> CmdResult<widget::WidgetConfig> {
+async fn widget_set_visible(app: AppHandle, visible: bool) -> CmdResult<widget::WidgetConfig> {
     widget::set_visible(&app, visible)
 }
 
@@ -559,7 +562,7 @@ fn widget_reset_position(app: AppHandle) -> widget::WidgetConfig {
 
 /// Buka jendela utama, opsional langsung ke halaman tertentu (dari widget).
 #[tauri::command]
-fn open_main(app: AppHandle, page: Option<String>) {
+async fn open_main(app: AppHandle, page: Option<String>) {
     show_main(&app);
     if let Some(p) = page {
         let _ = app.emit_to("main", "navigate", p);
@@ -577,7 +580,7 @@ fn widget_snap(app: AppHandle, place: String) -> widget::WidgetConfig {
 }
 
 #[tauri::command]
-fn sticky_open(app: AppHandle, id: String) -> CmdResult<()> {
+async fn sticky_open(app: AppHandle, id: String) -> CmdResult<()> {
     sticky::open(&app, &id)
 }
 
@@ -647,8 +650,16 @@ fn break_status(app: AppHandle) -> breaks::Status {
 }
 
 #[tauri::command]
-fn break_action(app: AppHandle, action: String) {
+async fn break_action(app: AppHandle, action: String) {
     breaks::action(&app, &action, db::now_ms());
+}
+
+/// Jalankan aksi yang mungkin membuat jendela di utas terpisah. Event handler (tray, pintasan
+/// global, single-instance) berjalan di utas utama; membuat jendela WebView2 di sana membuat
+/// Windows deadlock. Dari utas lain, Tauri meneruskan pembuatan jendela ke event loop dengan aman.
+fn off_main(app: &AppHandle, f: impl FnOnce(&AppHandle) + Send + 'static) {
+    let a = app.clone();
+    std::thread::spawn(move || f(&a));
 }
 
 fn show_main(app: &AppHandle) {
@@ -657,15 +668,18 @@ fn show_main(app: &AppHandle) {
         // Jendela utama hilang (mis. WebView2 sempat crash): buat ulang dari konfigurasi.
         None => {
             let Some(cfg) = app.config().app.windows.iter().find(|w| w.label == "main").cloned() else { return };
-            match tauri::WebviewWindowBuilder::from_config(app, &cfg).and_then(|b| b.build()) {
-                Ok(w) => w,
+            off_main(app, move |app| match tauri::WebviewWindowBuilder::from_config(app, &cfg).and_then(|b| b.build()) {
+                Ok(w) => {
+                    let _ = w.show();
+                    let _ = w.set_focus();
+                }
                 Err(e) => {
                     if let Ok(dir) = app.path().app_data_dir() {
                         system::log_write(&dir, "ERROR", &format!("Gagal membuat ulang jendela utama: {e}"));
                     }
-                    return;
                 }
-            }
+            });
+            return;
         }
     };
     let _ = w.show();
@@ -752,20 +766,20 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
                     let _ = do_sync(&a);
                 });
             }
-            "capture" => capture::show(app),
-            "break-now" => breaks::action(app, "start", db::now_ms()),
-            "widget-toggle" => {
-                let visible = widget::load(app).visible;
-                let _ = widget::set_visible(app, !visible);
-            }
-            "widget-unlock" => {
-                widget::update(app, |c| c.click_through = false);
-                let _ = widget::set_visible(app, true);
-            }
-            "widget-reset" => {
-                widget::reset_position(app);
-                let _ = widget::set_visible(app, true);
-            }
+            "capture" => off_main(app, capture::show),
+            "break-now" => off_main(app, |a| breaks::action(a, "start", db::now_ms())),
+            "widget-toggle" => off_main(app, |a| {
+                let visible = widget::load(a).visible;
+                let _ = widget::set_visible(a, !visible);
+            }),
+            "widget-unlock" => off_main(app, |a| {
+                widget::update(a, |c| c.click_through = false);
+                let _ = widget::set_visible(a, true);
+            }),
+            "widget-reset" => off_main(app, |a| {
+                widget::reset_position(a);
+                let _ = widget::set_visible(a, true);
+            }),
             "quit" => app.exit(0),
             _ => {}
         })
@@ -827,7 +841,7 @@ pub fn run() {
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, _shortcut, event| {
                     if event.state() == tauri_plugin_global_shortcut::ShortcutState::Pressed {
-                        capture::toggle(app);
+                        off_main(app, capture::toggle);
                     }
                 })
                 .build(),
