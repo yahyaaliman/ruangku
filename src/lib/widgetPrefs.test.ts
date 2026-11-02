@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { accentHex, DEFAULT_PREFS, moveSection, normalizePrefs, toggleCollapsed } from "./widgetPrefs";
+import { accentHex, DEFAULT_PREFS, moveSection, normalizePrefs, toggleCollapsed, widgetShownHint } from "./widgetPrefs";
 
 describe("widget prefs", () => {
   it("mengisi default dan membatasi nilai", () => {
@@ -34,5 +34,11 @@ describe("widget prefs", () => {
     expect(toggleCollapsed([], "okr")).toEqual(["okr"]);
     expect(accentHex("daun", true)).toBe("#5fd3a6");
     expect(accentHex("bawaan", false)).toBe("#3b4cca");
+  });
+
+  it("memberi tahu letak widget setelah dimunculkan", () => {
+    expect(widgetShownHint({ visible: true, layer: "desktop" })).toMatch(/Minimalkan jendela/);
+    expect(widgetShownHint({ visible: true, layer: "top" })).toBe("Widget ditampilkan.");
+    expect(widgetShownHint({ visible: false, layer: "desktop" })).toBeNull();
   });
 });

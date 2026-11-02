@@ -55,6 +55,7 @@ import { useAgendaSync } from "./lib/agendaSync";
 import { useMcpServer } from "./ai/mcp";
 import { stepZoom } from "./lib/appearance";
 import { openSettings } from "./lib/deeplink";
+import { widgetShownHint } from "./lib/widgetPrefs";
 
 export type Page = "today" | "projects" | "tasks" | "calendar" | "schedule" | "meetings" | "courses" | "ledger" | "ibadah" | "okr" | "kpi" | "review" | "notes" | "files" | "team" | "assistant" | "guide" | "settings";
 
@@ -411,7 +412,8 @@ function Shell() {
             featured: true,
             run: async () => {
               const c = await api.widgetConfig();
-              await api.widgetSetVisible(!c.visible);
+              const next = await api.widgetSetVisible(!c.visible);
+              toast(widgetShownHint(next) ?? "Widget disembunyikan.", "info");
             },
           },
           { id: "break", label: "Istirahat sekarang", icon: Coffee, keywords: "rehat jeda break", run: () => breakAction("start") },

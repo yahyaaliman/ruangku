@@ -129,6 +129,14 @@ export function moveSection(sections: WidgetPrefs["sections"], id: WidgetSection
   return copy;
 }
 
+/** Pesan setelah widget dimunculkan dari aplikasi. Di lapisan "desktop" widget berada di bawah
+ * semua jendela, termasuk Ruangku yang dimaksimalkan, sehingga mudah dikira tidak muncul. */
+export function widgetShownHint(c: Pick<WidgetConfig, "visible" | "layer">): string | null {
+  if (!c.visible) return null;
+  if (c.layer === "desktop") return "Widget tampil di desktop, di bawah jendela lain. Minimalkan jendela Ruangku dan jendela lain untuk melihatnya, atau pilih lapisan \u201cSelalu di atas\u201d.";
+  return "Widget ditampilkan.";
+}
+
 export function useWidgetPrefs() {
   const [prefs, setPrefs] = useState<WidgetPrefs>(DEFAULT_PREFS);
   const [config, setConfig] = useState<WidgetConfig | null>(null);

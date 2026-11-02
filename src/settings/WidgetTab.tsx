@@ -3,7 +3,7 @@
 import { useState, type CSSProperties } from "react";
 import { ArrowDown, ArrowUp, LayoutPanelLeft, Lock, MousePointerClick, RotateCcw, Sparkles } from "lucide-react";
 import { api, emitTo, errorText, isDesktop } from "../lib/api";
-import { ACCENTS, PLACES, PRESETS, SECTION_LABEL, SIZE_PRESETS, accentHex, moveSection, useWidgetPrefs } from "../lib/widgetPrefs";
+import { ACCENTS, PLACES, PRESETS, SECTION_LABEL, SIZE_PRESETS, accentHex, moveSection, useWidgetPrefs, widgetShownHint } from "../lib/widgetPrefs";
 import type { WidgetConfig } from "../lib/types";
 import { Confirm, useToast } from "../components/ui";
 
@@ -58,7 +58,16 @@ export function WidgetTab() {
           <div className="set-widget">
             <div className="set-widget-controls">
               <label className="switch">
-                <input type="checkbox" checked={!!wc?.visible} disabled={!wc} onChange={(e) => set(api.widgetSetVisible(e.target.checked))} />
+                <input type="checkbox" checked={!!wc?.visible} disabled={!wc} onChange={(e) =>
+                    set(
+                      api.widgetSetVisible(e.target.checked).then((c) => {
+                        const hint = widgetShownHint(c);
+                        if (hint) toast(hint, "info");
+                        return c;
+                      }),
+                    )
+                  }
+                />
                 <span>Tampilkan widget di desktop</span>
               </label>
               <div className="set-field">
