@@ -9,7 +9,7 @@
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -362,6 +362,60 @@ pub fn remove_demo(conn: &mut Connection) -> rusqlite::Result<usize> {
         let rows = stmt.query_map([], |r| r.get(0))?;
         rows.collect::<rusqlite::Result<_>>()?
     };
+    // Kemunculan rapat berulang dan blok jadwalnya dibuat aplikasi dari seri demo tanpa
+    // penanda demo, jadi ikut dihapus lewat tautan seriesId/meetingId.
+    let gone: HashSet<String> = ids.iter().cloned().collect();
+    let children = generated_orphans(conn, &gone)?;
+    let tx = conn.transaction()?;
+    for id in ids.iter().chain(children.iter()) {
+        remove(&tx, id)?;
+    }
+    tx.commit()?;
+    Ok(ids.len() + children.len())
+}
+
+/// Rapat yang dibuat otomatis dari seri yang sudah dihapus (atau ada di `gone`), dan blok jadwal
+/// dari rapat yang sudah dihapus. Hanya dua jenis ini: catatan dan tugas yang menautkan rapat
+/// sengaja dibiarkan, karena itu buatan pengguna.
+fn generated_orphans(conn: &Connection, gone: &HashSet<String>) -> rusqlite::Result<Vec<String>> {
+    let ids = |sql: &str| -> rusqlite::Result<HashSet<String>> {
+        let mut stmt = conn.prepare(sql)?;
+        let rows = stmt.query_map([], |r| r.get::<_, String>(0))?;
+        rows.collect()
+    };
+    let pairs = |sql: &str| -> rusqlite::Result<Vec<(String, String)>> {
+        let mut stmt = conn.prepare(sql)?;
+        let rows = stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?;
+        rows.collect()
+    };
+    let mut dead_series = ids("SELECT id FROM records WHERE kind = 'meetingseries' AND deleted = 1")?;
+    dead_series.extend(gone.iter().cloned());
+    let mut dead_meetings = ids("SELECT id FROM records WHERE kind = 'meeting' AND deleted = 1")?;
+    dead_meetings.extend(gone.iter().cloned());
+    let mut out = Vec::new();
+    for (id, series) in pairs("SELECT id, json_extract(data, '$.seriesId') FROM records WHERE kind = 'meeting' AND deleted = 0 AND json_type(data, '$.seriesId') = 'text'")? {
+        if dead_series.contains(&series) {
+            if !gone.contains(&id) {
+                out.push(id.clone());
+            }
+            dead_meetings.insert(id);
+        }
+    }
+    for (id, meeting) in pairs("SELECT id, json_extract(data, '$.meetingId') FROM records WHERE kind = 'timeblock' AND deleted = 0 AND json_type(data, '$.meetingId') = 'text'")? {
+        if dead_meetings.contains(&meeting) && !gone.contains(&id) {
+            out.push(id);
+        }
+    }
+    Ok(out)
+}
+
+/// Bersihkan sisa rapat/blok dari seri atau rapat yang sudah dihapus (mis. "Weekly sync tim Jitu"
+/// yang tertinggal setelah data demo dihapus di versi lama). Dijalankan sekali saat start.
+pub fn remove_orphans(conn: &mut Connection) -> rusqlite::Result<usize> {
+    let ids = generated_orphans(conn, &HashSet::new())?;
+    if ids.is_empty() {
+        return Ok(0);
+    }
     let tx = conn.transaction()?;
     for id in &ids {
         remove(&tx, id)?;
@@ -528,6 +582,35 @@ mod tests {
         assert_eq!(count_active(&conn).unwrap(), 1);
         assert!(get(&conn, "a").unwrap().unwrap().deleted);
         assert!(!get(&conn, "b").unwrap().unwrap().deleted);
+    }
+
+    #[test]
+    fn remove_demo_takes_generated_meetings_but_keeps_user_notes() {
+        let mut conn = open_in_memory().unwrap();
+        upsert(&conn, "ms-weekly", "meetingseries", json!({"title": "Weekly", "demo": true})).unwrap();
+        upsert(&conn, "mt-ms-weekly-2026-11-02", "meeting", json!({"title": "Weekly", "seriesId": "ms-weekly"})).unwrap();
+        upsert(&conn, "blk-mt-ms-weekly-2026-11-02", "timeblock", json!({"title": "Weekly", "meetingId": "mt-ms-weekly-2026-11-02"})).unwrap();
+        upsert(&conn, "n-1", "note", json!({"title": "Notulen saya", "meetingId": "mt-ms-weekly-2026-11-02"})).unwrap();
+        upsert(&conn, "ms-mine", "meetingseries", json!({"title": "Rapat saya"})).unwrap();
+        upsert(&conn, "mt-ms-mine-2026-11-03", "meeting", json!({"title": "Rapat saya", "seriesId": "ms-mine"})).unwrap();
+        assert_eq!(remove_demo(&mut conn).unwrap(), 3);
+        assert!(get(&conn, "mt-ms-weekly-2026-11-02").unwrap().unwrap().deleted);
+        assert!(get(&conn, "blk-mt-ms-weekly-2026-11-02").unwrap().unwrap().deleted);
+        assert!(!get(&conn, "n-1").unwrap().unwrap().deleted);
+        assert!(!get(&conn, "mt-ms-mine-2026-11-03").unwrap().unwrap().deleted);
+    }
+
+    #[test]
+    fn remove_orphans_cleans_leftovers_from_old_demo_removal() {
+        let mut conn = open_in_memory().unwrap();
+        upsert(&conn, "ms-weekly", "meetingseries", json!({"title": "Weekly", "demo": true})).unwrap();
+        upsert(&conn, "mt-ms-weekly-2026-11-09", "meeting", json!({"title": "Weekly", "seriesId": "ms-weekly"})).unwrap();
+        upsert(&conn, "blk-mt-ms-weekly-2026-11-09", "timeblock", json!({"meetingId": "mt-ms-weekly-2026-11-09"})).unwrap();
+        upsert(&conn, "blk-own", "timeblock", json!({"title": "Fokus"})).unwrap();
+        remove(&conn, "ms-weekly").unwrap(); // versi lama: hanya seri yang terhapus
+        assert_eq!(remove_orphans(&mut conn).unwrap(), 2);
+        assert_eq!(remove_orphans(&mut conn).unwrap(), 0);
+        assert!(!get(&conn, "blk-own").unwrap().unwrap().deleted);
     }
 
     #[test]

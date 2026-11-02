@@ -91,8 +91,8 @@ Unduh **`Ruangku_<versi>_x64-setup.exe`** dari halaman [Releases](https://github
 3. Untuk rilis publik, naikkan versi lalu push tag:
 
 ```powershell
-git tag v0.6.0
-git push origin v0.6.0
+git tag v0.6.1
+git push origin v0.6.1
 ```
 
 Installer, `.msi`, `SHA256SUMS.txt`, dan catatan rilis terbit di halaman Releases. Pembaruan di dalam aplikasi aktif bila kunci updater sudah diatur (lihat [INTEGRASI-DAN-KEAMANAN.md](INTEGRASI-DAN-KEAMANAN.md)).

@@ -26,14 +26,14 @@ Data aplikasi tersimpan di `%APPDATA%\com.ruangku.app` (database `ruangku.db` be
 2. Cocokkan checksum di PowerShell:
 
    ```powershell
-   Get-FileHash .\Ruangku_0.6.0_x64-setup.exe -Algorithm SHA256
+   Get-FileHash .\Ruangku_0.6.1_x64-setup.exe -Algorithm SHA256
    ```
 
    Hasilnya harus sama persis dengan baris file itu di `SHA256SUMS.txt`.
 3. Opsional, periksa bukti asal-usul build (attestation) dengan [GitHub CLI](https://cli.github.com):
 
    ```powershell
-   gh attestation verify .\Ruangku_0.6.0_x64-setup.exe -R yahyaaliman/ruangku
+   gh attestation verify .\Ruangku_0.6.1_x64-setup.exe -R yahyaaliman/ruangku
    ```
 
    Perintah ini membuktikan file dibuat oleh GitHub Actions dari kode di repo ini, bukan diunggah dari komputer orang lain.

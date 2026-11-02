@@ -157,7 +157,12 @@ export async function mockCall(cmd: string, a: Record<string, any>): Promise<unk
       return rows.filter((r) => !r.deleted).length;
     case "records_remove_demo": {
       let n = 0;
-      for (const r of rows) if (!r.deleted && r.data?.demo) (Object.assign(r, { deleted: true, data: null, updatedAt: Date.now() }), n++);
+      const gone = new Set<string>();
+      for (const r of rows) if (!r.deleted && r.data?.demo) gone.add(r.id);
+      // Sama seperti backend: kemunculan rapat dari seri demo dan blok jadwalnya ikut dihapus.
+      for (const r of rows) if (!r.deleted && r.kind === "meeting" && gone.has(r.data?.seriesId)) gone.add(r.id);
+      for (const r of rows) if (!r.deleted && r.kind === "timeblock" && gone.has(r.data?.meetingId)) gone.add(r.id);
+      for (const r of rows) if (gone.has(r.id) && !r.deleted) (Object.assign(r, { deleted: true, data: null, updatedAt: Date.now() }), n++);
       persist(rows);
       emit("records-changed", "*");
       return n;

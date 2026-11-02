@@ -858,7 +858,12 @@ pub fn run() {
         .setup(|app| {
             let dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&dir)?;
-            let conn = db::open(&dir.join("ruangku.db")).map_err(|e| format!("Gagal membuka database: {e}"))?;
+            let mut conn = db::open(&dir.join("ruangku.db")).map_err(|e| format!("Gagal membuka database: {e}"))?;
+            match db::remove_orphans(&mut conn) {
+                Ok(0) => {}
+                Ok(n) => system::log_write(&dir, "INFO", &format!("Membersihkan {n} rapat/blok jadwal sisa dari seri yang sudah dihapus")),
+                Err(e) => system::log_write(&dir, "WARN", &format!("Pembersihan rapat sisa gagal: {e}")),
+            }
             let device_id = match db::get_setting(&conn, "device_id")? {
                 Some(id) => id,
                 None => {
